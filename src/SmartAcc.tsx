@@ -103,7 +103,6 @@ export function SmartAccount() {
   const [guardian2, setGuardian2] = useState<`0x${string}`>(
     "0x2f1e36d9Caed0EEF7341ade09BD7238b4E8794aa",
   );
-  const [client, setClient] = useState<any>();
   useEffect(() => {
     if (isConnected && address) {
       setStatus("Wallet connected");
@@ -131,7 +130,7 @@ export function SmartAccount() {
         accountImplementationAddress: KERNEL_IMPLEMENTATION_ADDRESS as Hex,
         useMetaFactory: true,
         metaFactoryAddress: STAKER_FACTORY_ADDRESS as Hex,
-        index: BigInt(2008),
+        index: BigInt(2012),
       });
 
       setSmartAccount(account);
@@ -185,7 +184,6 @@ export function SmartAccount() {
       },
     }).extend(erc7579Actions());
 
-    setClient(kernelClient);
     const socialRecovery = getSocialRecoveryValidator({
       threshold: 2,
       guardians: [guardian1, guardian2],
@@ -278,6 +276,96 @@ export function SmartAccount() {
   };
 
   const handleInstallSessionModule = async () => {
+
+    const kernelClient = createKernelAccountClient({
+      account: smartAccount,
+      chain: soneiumMinato,
+      bundlerTransport: http(BUNDLER_URL),
+      client: publicClient,
+      paymaster: {
+        async getPaymasterData(pmDataParams: GetPaymasterDataParameters) {
+          console.log("Called getPaymasterData: ");
+          // console.log("Called getPaymasterData: ", pmDataParams);
+          const paymasterResponse = await paymasterClient.getPaymasterData(pmDataParams);
+          // console.log("Paymaster Response: ", paymasterResponse);
+          return paymasterResponse;
+        },
+        async getPaymasterStubData(pmStubDataParams: GetPaymasterDataParameters) {
+          console.log("Called getPaymasterStubData: ");
+          // console.log("Called getPaymasterStubData: ", pmStubDataParams);
+          const paymasterStubResponse =
+            await paymasterClient.getPaymasterStubData(pmStubDataParams);
+          // console.log("Paymaster Stub Response: ", paymasterStubResponse);
+          // return paymasterStubResponse;
+          return {
+            ...paymasterStubResponse,
+            paymasterAndData: undefined,
+            paymaster: PAYMASTER_CONTRACT_ADDRESS,
+            paymasterData: paymasterStubResponse.paymasterData || "0x",
+            paymasterVerificationGasLimit:
+              paymasterStubResponse.paymasterVerificationGasLimit || BigInt(200000),
+            paymasterPostOpGasLimit:
+              paymasterStubResponse.paymasterPostOpGasLimit || BigInt(100000),
+          };
+        },
+      },
+      paymasterContext: scsContext,
+
+      userOperation: {
+        estimateFeesPerGas: async () => {
+          return {
+            maxFeePerGas: BigInt(10000000),
+            maxPriorityFeePerGas: BigInt(10000000),
+          };
+        },
+      },
+    }).extend(erc7579Actions());
+
+    const smartSessions = getSmartSessionsValidator({});
+    console.log("Smart Sessions: ", smartSessions);
+
+    // Todo: make this work with module-sdk addresses of smart session validator and ownable validator
+    // Override our own addresses
+    smartSessions.address = SMART_SESSIONS_MODULE_ADDRESS;
+    smartSessions.module = SMART_SESSIONS_MODULE_ADDRESS;
+
+    const isSmartSessionsModuleInstalled = await kernelClient.isModuleInstalled(smartSessions);
+    console.log("Is Smart Sessions Module Installed: ", isSmartSessionsModuleInstalled);
+
+    if (!isSmartSessionsModuleInstalled) {
+      // Todo: verify if registering a selector is needed with USE mode as well.
+      const context = encodePacked(
+        ["address", "bytes"],
+        [
+          zeroAddress,
+          encodeAbiParameters(
+            [{ type: "bytes" }, { type: "bytes" }, { type: "bytes" }],
+            [smartSessions.initData || "0x", "0x", "0xe9ae5c53"],
+          ),
+        ],
+      );
+
+      const opHash = await kernelClient.installModule({
+        type: smartSessions.type,
+        address: SMART_SESSIONS_MODULE_ADDRESS,
+        context: context,
+      });
+
+      console.log("Operation hash: ", opHash);
+
+      const result = await bundlerClient.waitForUserOperationReceipt({
+        hash: opHash,
+      });
+      console.log("Operation result: ", result.receipt.transactionHash);
+
+      console.log("Smart Sessions Module installed successfully");
+
+      const isSmartSessionsModuleInstalledNow = await kernelClient.isModuleInstalled(smartSessions);
+      console.log("Is Smart Sessions Module Installed Now: ", isSmartSessionsModuleInstalledNow);
+    } else {
+      console.log("Module is already installed");
+    }
+
     const trustAttestersAction = getTrustAttestersAction({
       threshold: 1,
       attesters: [
@@ -286,7 +374,7 @@ export function SmartAccount() {
       ],
     });
 
-    const userOpHash1 = await client.sendUserOperation({
+    const userOpHash1 = await kernelClient.sendUserOperation({
       account: smartAccount,
       calls: [
         {
@@ -300,10 +388,17 @@ export function SmartAccount() {
     const receipt1 = await bundlerClient.waitForUserOperationReceipt({
       hash: userOpHash1,
     });
+
     console.log("User Operation hash: ", receipt1.receipt.transactionHash);
+    console.log("Trust Attesters action executed successfully");
+
+    // Followed below as well
+    // https://docs.rhinestone.wtf/module-registry/usage/mock-attestation
+
+    // Install Ownable Validator
 
     const ownableValidator = getOwnableValidator({
-      owners: [address as `0x${string}`],
+      owners: [connectedAccount.address as Address],
       threshold: 1,
       hook: zeroAddress,
     });
@@ -321,27 +416,28 @@ export function SmartAccount() {
         ),
       ],
     );
-
+    console.log("Ownable Validator address: ", ownableValidator);
     console.log("Ownable Validator: ", ownableValidator);
 
-    const isOwnableValidatorInstalled = await client.isModuleInstalled(ownableValidator);
-    console.log("Is Ownable Validator Installed: ", isOwnableValidatorInstalled);
-
-    const opHashInstallOwnableVal = await client.installModule(ownableValidator);
+    const opHashInstallOwnableVal = await kernelClient.installModule(ownableValidator);
     console.log("Operation hash: ", opHashInstallOwnableVal);
     const result1 = await bundlerClient.waitForUserOperationReceipt({
       hash: opHashInstallOwnableVal,
     });
     console.log("Operation result to install ownableValidator: ", result1.receipt.transactionHash);
+    console.log("Ownable Validator installed successfully");
 
     const owners = (await publicClient.readContract({
       address: OWNABLE_VALIDATOR_ADDRESS,
       abi: OwnableValidatorAbi,
       functionName: "getOwners",
-      args: [smartAccount?.address || zeroAddress],
+      args: [smartAccount?.address],
     })) as Address[];
     console.log("All Owners: ", owners);
 
+    // Now that the smart session is installed and account has trusted attesters..
+
+    // Note: Can keep fixed session owner
     const sessionOwner = privateKeyToAccount(generatePrivateKey());
 
     const session: Session = {
@@ -383,7 +479,17 @@ export function SmartAccount() {
       session,
     });
 
-    const userOpHashEnableSession = await client.sendUserOperation({
+    // return {
+    //   action: {
+    //     target: SMART_SESSIONS_ADDRESS,
+    //     value: BigInt(0),
+    //     callData: preparePermissionData
+    //   },
+    //   permissionIds: permissionIds,
+    //   sessions
+    // }
+
+    const userOpHashEnableSession = await kernelClient.sendUserOperation({
       account: smartAccount,
       calls: [
         {
@@ -398,6 +504,11 @@ export function SmartAccount() {
       hash: userOpHashEnableSession,
     });
     console.log("User Operation hash to enable session: ", receipt2.receipt.transactionHash);
+    console.log("Session enabled successfully");
+
+    // Now let's use it.. with session key signature.
+
+    console.log("account address: ", smartAccount?.address);
 
     const nonceKey = encodeValidatorNonceKey({
       validator: SMART_SESSIONS_MODULE_ADDRESS,
@@ -426,7 +537,7 @@ export function SmartAccount() {
       [SmartSessionMode.USE, permissionId, mockSig],
     );
 
-    const userOpParams = {
+    const userOperation = await kernelClient.prepareUserOperation({
       account: smartAccount,
       calls: [
         {
@@ -443,9 +554,7 @@ export function SmartAccount() {
       // paymasterVerificationGasLimit: BigInt(200000),
       nonce,
       signature: dummySigEncoded,
-    };
-    console.log(userOpParams);
-    const userOperation = await client.prepareUserOperation(userOpParams);
+    });
 
     console.log("User Operation: ", userOperation);
 
@@ -473,13 +582,14 @@ export function SmartAccount() {
 
     userOperation.signature = userOpSignature;
 
-    const finalOpHash = await client.sendUserOperation(userOperation as any);
+    const finalOpHash = await kernelClient.sendUserOperation(userOperation as any);
 
     const receiptFinal = await bundlerClient.waitForUserOperationReceipt({
       hash: finalOpHash,
     });
 
     console.log("User Operation hash to execute session: ", receiptFinal.receipt.transactionHash);
+    console.log("Session executed successfully");
 
     const counterStateAfter = (await publicClient.readContract({
       address: COUNTER_CONTRACT_ADDRESS,
@@ -531,7 +641,7 @@ export function SmartAccount() {
           </button>
         </div>
       )}
-      {step >= 3 && (
+      {step >= 2 && (
         <div>
           <h2>Session module</h2>
           <button type="button" onClick={handleInstallSessionModule}>
