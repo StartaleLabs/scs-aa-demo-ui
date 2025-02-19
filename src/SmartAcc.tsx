@@ -96,7 +96,6 @@ export function SmartAccount() {
 
   const [step, setStep] = useState(0);
   const [smartAccount, setSmartAccount] = useState<CreateKernelAccountReturnType>();
-  const [txHash, setTxHash] = useState("");
   const [status, setStatus] = useState("");
   const [guardian1, setGuardian1] = useState<`0x${string}`>(
     "0xa277F2011A116034a459D61bC1CAE0ddAc4f5D15",
@@ -132,7 +131,7 @@ export function SmartAccount() {
         accountImplementationAddress: KERNEL_IMPLEMENTATION_ADDRESS as Hex,
         useMetaFactory: true,
         metaFactoryAddress: STAKER_FACTORY_ADDRESS as Hex,
-        index: BigInt(2007),
+        index: BigInt(2008),
       });
 
       setSmartAccount(account);
@@ -287,6 +286,22 @@ export function SmartAccount() {
       ],
     });
 
+    const userOpHash1 = await client.sendUserOperation({
+      account: smartAccount,
+      calls: [
+        {
+          to: trustAttestersAction.target,
+          value: BigInt(0),
+          data: trustAttestersAction.callData,
+        },
+      ],
+    });
+
+    const receipt1 = await bundlerClient.waitForUserOperationReceipt({
+      hash: userOpHash1,
+    });
+    console.log("User Operation hash: ", receipt1.receipt.transactionHash);
+
     const ownableValidator = getOwnableValidator({
       owners: [address as `0x${string}`],
       threshold: 1,
@@ -312,191 +327,170 @@ export function SmartAccount() {
     const isOwnableValidatorInstalled = await client.isModuleInstalled(ownableValidator);
     console.log("Is Ownable Validator Installed: ", isOwnableValidatorInstalled);
 
-    if (!isOwnableValidatorInstalled) {
-      const userOpHash1 = await client.sendUserOperation({
-        account: smartAccount,
-        calls: [
-          {
-            to: trustAttestersAction.target,
-            value: BigInt(0),
-            data: trustAttestersAction.callData,
-          },
-        ],
-      });
-      const receipt1 = await bundlerClient.waitForUserOperationReceipt({
-        hash: userOpHash1,
-      });
+    const opHashInstallOwnableVal = await client.installModule(ownableValidator);
+    console.log("Operation hash: ", opHashInstallOwnableVal);
+    const result1 = await bundlerClient.waitForUserOperationReceipt({
+      hash: opHashInstallOwnableVal,
+    });
+    console.log("Operation result to install ownableValidator: ", result1.receipt.transactionHash);
 
-      console.log("Trust Attesters Action receipt: ", receipt1);
-      const opHashInstallOwnableVal = await client.installModule(ownableValidator);
-      console.log("Operation hash: ", opHashInstallOwnableVal);
-      const result1 = await bundlerClient.waitForUserOperationReceipt({
-        hash: opHashInstallOwnableVal,
-      });
-      console.log(
-        "Operation result to install ownableValidator: ",
-        result1.receipt.transactionHash,
-      );
+    const owners = (await publicClient.readContract({
+      address: OWNABLE_VALIDATOR_ADDRESS,
+      abi: OwnableValidatorAbi,
+      functionName: "getOwners",
+      args: [smartAccount?.address || zeroAddress],
+    })) as Address[];
+    console.log("All Owners: ", owners);
 
-      const owners = (await publicClient.readContract({
-        address: OWNABLE_VALIDATOR_ADDRESS,
-        abi: OwnableValidatorAbi,
-        functionName: "getOwners",
-        args: [smartAccount?.address || zeroAddress],
-      })) as Address[];
-      console.log("All Owners: ", owners);
+    const sessionOwner = privateKeyToAccount(generatePrivateKey());
 
-      const sessionOwner = privateKeyToAccount(generatePrivateKey());
-
-      const session: Session = {
-        sessionValidator: OWNABLE_VALIDATOR_ADDRESS,
-        sessionValidatorInitData: encodeValidationData({
-          threshold: 1,
-          owners: [sessionOwner.address],
-        }),
-        salt: toHex(toBytes("0", { size: 32 })),
-        userOpPolicies: [getSudoPolicy()],
-        erc7739Policies: {
-          allowedERC7739Content: [],
-          erc1271Policies: [],
-        },
-        actions: [
-          {
-            actionTarget: COUNTER_CONTRACT_ADDRESS, // an address as the target of the session execution
-            actionTargetSelector: "0x06661abd" as Hex, // function selector to be used in the execution, in this case count() // cast sig "count()" to hex
-            actionPolicies: [getSudoPolicy()],
-          },
-        ],
-        chainId: BigInt(chain.id),
-        permitERC4337Paymaster: true,
-      };
-
-      console.log("Session: ", session);
-
-      const sessions: Session[] = [session];
-
-      const preparePermissionData = encodeFunctionData({
-        abi: enablingSessionsAbi,
-        functionName: "enableSessions",
-        args: [sessions],
-      });
-
-      console.log("Prepare Permission Data: ", preparePermissionData);
-
-      const permissionId = getPermissionId({
-        session,
-      });
-
-      const userOpHashEnableSession = await client.sendUserOperation({
-        account: smartAccount,
-        calls: [
-          {
-            to: SMART_SESSIONS_MODULE_ADDRESS,
-            value: BigInt(0),
-            data: preparePermissionData,
-          },
-        ],
-      });
-
-      const receipt2 = await bundlerClient.waitForUserOperationReceipt({
-        hash: userOpHashEnableSession,
-      });
-      console.log("User Operation hash to enable session: ", receipt2.receipt.transactionHash);
-
-      const nonceKey = encodeValidatorNonceKey({
-        validator: SMART_SESSIONS_MODULE_ADDRESS,
-      });
-
-      console.log("nonceKey: ", toHex(nonceKey));
-
-      const nonce = await getAccountNonce(publicClient, {
-        address: smartAccount?.address as Address,
-        entryPointAddress: ENTRY_POINT_ADDRESS,
-        key: nonceKey,
-      });
-
-      console.log("Nonce Hex: ", toHex(nonce));
-
-      const mockSig = getOwnableValidatorMockSignature({
+    const session: Session = {
+      sessionValidator: OWNABLE_VALIDATOR_ADDRESS,
+      sessionValidatorInitData: encodeValidationData({
         threshold: 1,
-      });
+        owners: [sessionOwner.address],
+      }),
+      salt: toHex(toBytes("0", { size: 32 })),
+      userOpPolicies: [getSudoPolicy()],
+      erc7739Policies: {
+        allowedERC7739Content: [],
+        erc1271Policies: [],
+      },
+      actions: [
+        {
+          actionTarget: COUNTER_CONTRACT_ADDRESS, // an address as the target of the session execution
+          actionTargetSelector: "0x06661abd" as Hex, // function selector to be used in the execution, in this case count() // cast sig "count()" to hex
+          actionPolicies: [getSudoPolicy()],
+        },
+      ],
+      chainId: BigInt(chain.id),
+      permitERC4337Paymaster: true,
+    };
 
-      console.log("mockSig: ", mockSig);
+    console.log("Session: ", session);
 
-      console.log("permissionId: ", permissionId);
+    const sessions: Session[] = [session];
 
-      const dummySigEncoded = encodePacked(
-        ["bytes1", "bytes32", "bytes"],
-        [SmartSessionMode.USE, permissionId, mockSig],
-      );
+    const preparePermissionData = encodeFunctionData({
+      abi: enablingSessionsAbi,
+      functionName: "enableSessions",
+      args: [sessions],
+    });
 
-      const userOpParams = {
-        account: smartAccount,
-        calls: [
-          {
-            to: session.actions[0].actionTarget,
-            value: BigInt(0),
-            data: session.actions[0].actionTargetSelector,
-          },
-        ],
-        // verificationGasLimit: BigInt(200000),
-        // postOpGasLimit: BigInt(100000),
-        // maxFeePerGas: BigInt(10000000),
-        // callGasLimit: BigInt(10000000),
-        // preVerificationGas: BigInt(100000000),
-        // paymasterVerificationGasLimit: BigInt(200000),
-        nonce,
-        signature: dummySigEncoded,
-      };
-      console.log(userOpParams);
-      const userOperation = await client.prepareUserOperation(userOpParams);
+    console.log("Prepare Permission Data: ", preparePermissionData);
 
-      console.log("User Operation: ", userOperation);
+    const permissionId = getPermissionId({
+      session,
+    });
 
-      const userOpHashToSign = getUserOperationHash({
-        chainId: chain.id,
-        entryPointAddress: ENTRY_POINT_ADDRESS,
-        entryPointVersion: "0.7",
-        userOperation,
-      });
+    const userOpHashEnableSession = await client.sendUserOperation({
+      account: smartAccount,
+      calls: [
+        {
+          to: SMART_SESSIONS_MODULE_ADDRESS,
+          value: BigInt(0),
+          data: preparePermissionData,
+        },
+      ],
+    });
 
-      console.log("User Operation hash to sign: ", userOpHashToSign);
+    const receipt2 = await bundlerClient.waitForUserOperationReceipt({
+      hash: userOpHashEnableSession,
+    });
+    console.log("User Operation hash to enable session: ", receipt2.receipt.transactionHash);
 
-      const sessionKeySignature = await sessionOwner.signMessage({
-        message: { raw: userOpHashToSign },
-      });
+    const nonceKey = encodeValidatorNonceKey({
+      validator: SMART_SESSIONS_MODULE_ADDRESS,
+    });
 
-      console.log("Session Key Signature: ", sessionKeySignature);
+    console.log("nonceKey: ", toHex(nonceKey));
 
-      const userOpSignature = encodePacked(
-        ["bytes1", "bytes32", "bytes"],
-        [SmartSessionMode.USE, permissionId, sessionKeySignature],
-      );
+    const nonce = await getAccountNonce(publicClient, {
+      address: smartAccount?.address as Address,
+      entryPointAddress: ENTRY_POINT_ADDRESS,
+      key: nonceKey,
+    });
 
-      console.log("User Operation Signature: ", userOpSignature);
+    console.log("Nonce Hex: ", toHex(nonce));
 
-      userOperation.signature = userOpSignature;
+    const mockSig = getOwnableValidatorMockSignature({
+      threshold: 1,
+    });
 
-      const finalOpHash = await client.sendUserOperation(userOperation as any);
+    console.log("mockSig: ", mockSig);
 
-      const receiptFinal = await bundlerClient.waitForUserOperationReceipt({
-        hash: finalOpHash,
-      });
+    console.log("permissionId: ", permissionId);
 
-      console.log("User Operation hash to execute session: ", receiptFinal.receipt.transactionHash);
+    const dummySigEncoded = encodePacked(
+      ["bytes1", "bytes32", "bytes"],
+      [SmartSessionMode.USE, permissionId, mockSig],
+    );
 
-      const counterStateAfter = (await publicClient.readContract({
-        address: COUNTER_CONTRACT_ADDRESS,
-        abi: CounterAbi,
-        functionName: "counters",
-        args: [smartAccount?.address],
-      })) as bigint;
+    const userOpParams = {
+      account: smartAccount,
+      calls: [
+        {
+          to: session.actions[0].actionTarget,
+          value: BigInt(0),
+          data: session.actions[0].actionTargetSelector,
+        },
+      ],
+      // verificationGasLimit: BigInt(200000),
+      // postOpGasLimit: BigInt(100000),
+      // maxFeePerGas: BigInt(10000000),
+      // callGasLimit: BigInt(10000000),
+      // preVerificationGas: BigInt(100000000),
+      // paymasterVerificationGasLimit: BigInt(200000),
+      nonce,
+      signature: dummySigEncoded,
+    };
+    console.log(userOpParams);
+    const userOperation = await client.prepareUserOperation(userOpParams);
 
-      console.log("Counter state after session execution: ", counterStateAfter);
-    }
-    console.log("Ownable Validator is already installed");
-    setStatus("Ownable Validator is already installed");
-    setStep(4);
+    console.log("User Operation: ", userOperation);
+
+    const userOpHashToSign = getUserOperationHash({
+      chainId: chain.id,
+      entryPointAddress: ENTRY_POINT_ADDRESS,
+      entryPointVersion: "0.7",
+      userOperation,
+    });
+
+    console.log("User Operation hash to sign: ", userOpHashToSign);
+
+    const sessionKeySignature = await sessionOwner.signMessage({
+      message: { raw: userOpHashToSign },
+    });
+
+    console.log("Session Key Signature: ", sessionKeySignature);
+
+    const userOpSignature = encodePacked(
+      ["bytes1", "bytes32", "bytes"],
+      [SmartSessionMode.USE, permissionId, sessionKeySignature],
+    );
+
+    console.log("User Operation Signature: ", userOpSignature);
+
+    userOperation.signature = userOpSignature;
+
+    const finalOpHash = await client.sendUserOperation(userOperation as any);
+
+    const receiptFinal = await bundlerClient.waitForUserOperationReceipt({
+      hash: finalOpHash,
+    });
+
+    console.log("User Operation hash to execute session: ", receiptFinal.receipt.transactionHash);
+
+    const counterStateAfter = (await publicClient.readContract({
+      address: COUNTER_CONTRACT_ADDRESS,
+      abi: CounterAbi,
+      functionName: "counters",
+      args: [smartAccount?.address],
+    })) as bigint;
+
+    console.log("Counter state after session execution: ", counterStateAfter);
+
+
   };
 
   return (
