@@ -1,4 +1,5 @@
 import {
+  type Module,
   type Session,
   SmartSessionMode,
   encodeValidationData,
@@ -62,6 +63,7 @@ const {
   SMART_SESSIONS_MODULE_ADDRESS,
 } = AA_CONFIG;
 import { getAccountNonce } from "@zerodev/sdk/actions";
+import { Section } from "./Section";
 import { Counter as CounterAbi } from "./abi/Counter";
 import { enablingSessionsAbi } from "./abi/SmartSessionAbi";
 const scsContext = { calculateGasLimits: false, policyId: "sudo" };
@@ -81,35 +83,43 @@ const paymasterClient = createPaymasterClient({
   transport: http(PAYMASTER_SERVICE_URL),
 });
 
-export function SmartAccount() {
+export function SmartAccount({
+  toggleLoading,
+  addLine,
+}: { toggleLoading: () => void; addLine: (line: string) => void }) {
   const connectedAccount = useAccount();
-  const { isConnected, address } = connectedAccount;
 
-  // steps:
-  // 0 = waiting for connection;
-  // 1 = account instantiated;
-  // 2 = sponsored tx sent;
-  // 3 = recovery module installed;
-  // 4 = session module installed.
-
-  const [step, setStep] = useState(0);
   const [smartAccount, setSmartAccount] = useState<CreateKernelAccountReturnType>();
-  const [status, setStatus] = useState("");
+  const [kernelClient, setKernelClient] = useState<any>();
+  const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
+  const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
+  const [instanceIndex, setInstanceIndex] = useState(2022);
+  const [socialRecoveryModule, setSocialRecoveryModule] = useState<Module>();
+  const [smartSessionsModule, setSmartSessionsModule] = useState<Module>();
   const [guardian1, setGuardian1] = useState<`0x${string}`>(
     "0xa277F2011A116034a459D61bC1CAE0ddAc4f5D15",
   );
   const [guardian2, setGuardian2] = useState<`0x${string}`>(
     "0x2f1e36d9Caed0EEF7341ade09BD7238b4E8794aa",
   );
+
   useEffect(() => {
-    if (isConnected && address) {
-      setStatus("Wallet connected");
-      setStep(1);
+    if (smartAccount) {
+      addLine("Smart account instantiated");
+      addLine(`Smart account address: ${smartAccount.address}`);
+      addLine(`Instance index: ${instanceIndex}`);
+      initClient();
     }
-  }, [isConnected, address]);
+  }, [smartAccount]);
+
+  useEffect(() => {
+    if (kernelClient) {
+      addLine("Kernel client instantiated");
+      checkModules();
+    }
+  }, [kernelClient]);
 
   const handleInstantiateSmartAccount = async () => {
-    setStatus("Initializing smart account...");
     try {
       // Get an ECDSA validator instance based on the connected signer
       const ecdsaValidator = await signerToEcdsaValidator(publicClient, {
@@ -128,19 +138,19 @@ export function SmartAccount() {
         accountImplementationAddress: KERNEL_IMPLEMENTATION_ADDRESS as Hex,
         useMetaFactory: true,
         metaFactoryAddress: STAKER_FACTORY_ADDRESS as Hex,
-        index: BigInt(2022),
+        index: BigInt(instanceIndex),
       });
 
       setSmartAccount(account);
-      setStatus("Smart account initialized.");
-      setStep(2);
+      console.log("Smart Account: ", account);
     } catch (error) {
-      setStatus(`Error initializing smart account: ${(error as Error).message}`);
+      console.error("Error instantiating smart account", error);
+      addLine(`Error instantiating smart account: ${(error as Error).message}`);
     }
   };
 
-  const handleInstallRecoveryModule = async () => {
-    const kernelClient = createKernelAccountClient({
+  const initClient = async () => {
+    const kernelClientInstance = createKernelAccountClient({
       account: smartAccount,
       chain: soneiumMinato,
       bundlerTransport: http(BUNDLER_URL),
@@ -182,6 +192,12 @@ export function SmartAccount() {
       },
     }).extend(erc7579Actions());
 
+    console.log("Kernel Client: ", kernelClientInstance);
+    setKernelClient(kernelClientInstance);
+  };
+
+  const checkModules = async () => {
+    // Social recovery module
     const socialRecovery = getSocialRecoveryValidator({
       threshold: 2,
       guardians: [guardian1, guardian2],
@@ -190,20 +206,47 @@ export function SmartAccount() {
     socialRecovery.module = ACCOUNT_RECOVERY_MODULE_ADDRESS;
     socialRecovery.address = ACCOUNT_RECOVERY_MODULE_ADDRESS;
 
+    setSocialRecoveryModule(socialRecovery);
+    const recoveryModuleInstalled = await kernelClient.isModuleInstalled(socialRecovery);
+    setIsRecoveryModuleInstalled(recoveryModuleInstalled);
+    console.log("Is Recovery Module Installed: ", recoveryModuleInstalled);
+
+    // Smart Sessions module
+
+    const smartSessions = getSmartSessionsValidator({});
+    console.log("Smart Sessions: ", smartSessions);
+
+    // Todo: make this work with module-sdk addresses of smart session validator and ownable validator
+    // Override our own addresses
+    smartSessions.address = SMART_SESSIONS_MODULE_ADDRESS;
+    smartSessions.module = SMART_SESSIONS_MODULE_ADDRESS;
+
+    const isSmartSessionsModuleInstalled = await kernelClient.isModuleInstalled(smartSessions);
+    setIsSessionModuleInstalled(isSmartSessionsModuleInstalled);
+    console.log("Is Smart Sessions Module Installed: ", isSmartSessionsModuleInstalled);
+    setSmartSessionsModule(smartSessions);
+  };
+
+  const installRecoveryModule = async () => {
+    if (!smartAccount) {
+      throw new Error("Smart account not initialized");
+    }
+    if (!kernelClient) {
+      throw new Error("Kernel client not initialized");
+    }
+    if (!socialRecoveryModule) {
+      throw new Error("Social recovery module not initialized");
+    }
     const initDataArg = encodePacked(
       ["address", "bytes"],
       [
         zeroAddress,
         encodeAbiParameters(
           [{ type: "bytes" }, { type: "bytes" }],
-          [socialRecovery.initData || "0x", "0x"],
+          [socialRecoveryModule.initData || "0x", "0x"],
         ),
       ],
     );
-
-    if (!smartAccount) {
-      throw new Error("Smart account not initialized");
-    }
     const calls = [
       {
         to: smartAccount.address,
@@ -237,10 +280,9 @@ export function SmartAccount() {
       },
     ];
 
-    const isAccountRecoveryModuleInstalled = await kernelClient.isModuleInstalled(socialRecovery);
-    console.log("Is Module Installed: ", isAccountRecoveryModuleInstalled);
+    console.log("Is recovery Module Installed: ", isRecoveryModuleInstalled);
 
-    if (!isAccountRecoveryModuleInstalled) {
+    if (!isRecoveryModuleInstalled) {
       const installModuleUserOpHash = await kernelClient.sendUserOperation({
         callData: await kernelClient.account.encodeCalls(calls),
         // calls: calls this also works..
@@ -263,72 +305,26 @@ export function SmartAccount() {
       });
 
       console.log("User operation included", result);
-      const isModuleInstalledNow = await kernelClient.isModuleInstalled(socialRecovery);
+      const isModuleInstalledNow = await kernelClient.isModuleInstalled(socialRecoveryModule);
       console.log("Is Module Installed: ", isModuleInstalledNow);
-      setStatus("Smart account initialized.");
     } else {
       console.log("Module is already installed");
-      setStatus("Module is already installed");
     }
-    setStep(3);
   };
 
   const handleInstallSessionModule = async () => {
+    console.log("Is Smart Sessions Module Installed: ", isSessionModuleInstalled);
 
-    const kernelClient = createKernelAccountClient({
-      account: smartAccount,
-      chain: soneiumMinato,
-      bundlerTransport: http(BUNDLER_URL),
-      client: publicClient,
-      paymaster: {
-        async getPaymasterData(pmDataParams: GetPaymasterDataParameters) {
-          console.log("Called getPaymasterData: ", pmDataParams);
-          const paymasterResponse = await paymasterClient.getPaymasterData(pmDataParams);
-          console.log("Paymaster Response: ", paymasterResponse);
-          return paymasterResponse;
-        },
-        async getPaymasterStubData(pmStubDataParams: GetPaymasterDataParameters) {
-          console.log("Called getPaymasterStubData: ", pmStubDataParams);
-          const paymasterStubResponse =
-            await paymasterClient.getPaymasterStubData(pmStubDataParams);
-          console.log("Paymaster Stub Response: ", paymasterStubResponse);
-          // return paymasterStubResponse;
-          return {
-            ...paymasterStubResponse,
-            paymasterAndData: undefined,
-            paymaster: PAYMASTER_CONTRACT_ADDRESS as Hex,
-            paymasterData: paymasterStubResponse.paymasterData || "0x",
-            paymasterVerificationGasLimit:
-              paymasterStubResponse.paymasterVerificationGasLimit || BigInt(200000),
-            paymasterPostOpGasLimit:
-              paymasterStubResponse.paymasterPostOpGasLimit || BigInt(100000),
-          };
-        },
-      },
-      paymasterContext: scsContext,
-
-      userOperation: {
-        estimateFeesPerGas: async () => {
-          return {
-            maxFeePerGas: BigInt(100000000),
-            maxPriorityFeePerGas: BigInt(100000000),
-          };
-        },
-      },
-    }).extend(erc7579Actions());
-
-    const smartSessions = getSmartSessionsValidator({});
-    console.log("Smart Sessions: ", smartSessions);
-
-    // Todo: make this work with module-sdk addresses of smart session validator and ownable validator
-    // Override our own addresses
-    smartSessions.address = SMART_SESSIONS_MODULE_ADDRESS;
-    smartSessions.module = SMART_SESSIONS_MODULE_ADDRESS;
-
-    const isSmartSessionsModuleInstalled = await kernelClient.isModuleInstalled(smartSessions);
-    console.log("Is Smart Sessions Module Installed: ", isSmartSessionsModuleInstalled);
-
-    if (!isSmartSessionsModuleInstalled) {
+    if (!isSessionModuleInstalled) {
+      if (!smartAccount) {
+        throw new Error("Smart account not initialized");
+      }
+      if (!kernelClient) {
+        throw new Error("Kernel client not initialized");
+      }
+      if (!smartSessionsModule) {
+        throw new Error("Smart sessions module not initialized");
+      }
       // Todo: verify if registering a selector is needed with USE mode as well.
       const context = encodePacked(
         ["address", "bytes"],
@@ -336,13 +332,13 @@ export function SmartAccount() {
           zeroAddress,
           encodeAbiParameters(
             [{ type: "bytes" }, { type: "bytes" }, { type: "bytes" }],
-            [smartSessions.initData || "0x", "0x", "0xe9ae5c53"],
+            [smartSessionsModule.initData || "0x", "0x", "0xe9ae5c53"],
           ),
         ],
       );
 
       const opHash = await kernelClient.installModule({
-        type: smartSessions.type,
+        type: smartSessionsModule.type,
         address: SMART_SESSIONS_MODULE_ADDRESS,
         context: context,
       });
@@ -356,7 +352,8 @@ export function SmartAccount() {
 
       console.log("Smart Sessions Module installed successfully");
 
-      const isSmartSessionsModuleInstalledNow = await kernelClient.isModuleInstalled(smartSessions);
+      const isSmartSessionsModuleInstalledNow =
+        await kernelClient.isModuleInstalled(smartSessionsModule);
       console.log("Is Smart Sessions Module Installed Now: ", isSmartSessionsModuleInstalledNow);
     } else {
       console.log("Module is already installed");
@@ -596,20 +593,20 @@ export function SmartAccount() {
     })) as bigint;
 
     console.log("Counter state after session execution: ", counterStateAfter);
-
-
   };
 
   return (
-    <div>
-      <div>{status}</div>
-      <button type="button" onClick={handleInstantiateSmartAccount}>
-        Instantiate Smart Account
-      </button>
-      {smartAccount && <div>Smart account address: {smartAccount.address}</div>}
-      {step >= 2 && (
-        <div>
-          <h2>Recovery module</h2>
+    <div className="input">
+      <Section title="Smart Account instance">
+        {!smartAccount && (
+          <button type="button" onClick={handleInstantiateSmartAccount}>
+            Get a smart account instance
+          </button>
+        )}
+        {smartAccount && <div>Smart account address: {smartAccount.address}</div>}
+      </Section>
+      <Section title="Social Recovery Module">
+        {!isRecoveryModuleInstalled ? (
           <div>
             <label htmlFor="guardian1">Guardian 1</label>
             <input
@@ -620,8 +617,6 @@ export function SmartAccount() {
               value={guardian1}
               onChange={(e) => setGuardian1(e.target.value as `0x${string}`)}
             />
-          </div>
-          <div>
             <label htmlFor="guardian2">Guardian 2</label>
             <input
               name="guardian2"
@@ -631,20 +626,24 @@ export function SmartAccount() {
               value={guardian2}
               onChange={(e) => setGuardian2(e.target.value as `0x${string}`)}
             />
+            <button type="button" onClick={installRecoveryModule}>
+              Install Recovery Module
+            </button>
           </div>
-          <button type="button" onClick={handleInstallRecoveryModule}>
-            Install Recovery Module
-          </button>
-        </div>
-      )}
-      {step >= 2 && (
-        <div>
-          <h2>Session module</h2>
+        ) : (
+          <div>Recovery Module installed</div>
+        )}
+      </Section>
+
+      <Section title="Session Module">
+        {!isSessionModuleInstalled ? (
           <button type="button" onClick={handleInstallSessionModule}>
             Install Session Module
           </button>
-        </div>
-      )}
+        ) : (
+          <div>Session Module installed</div>
+        )}
+      </Section>
     </div>
   );
 }

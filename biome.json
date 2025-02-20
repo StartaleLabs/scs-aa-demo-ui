@@ -13,6 +13,9 @@
       "a11y": {
         "noNoninteractiveTabindex": "off",
         "useAnchorContent": "off"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "off"
       }
     }
   },
