@@ -1,14 +1,22 @@
+import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import type { Address, Hex } from "viem";
 import { http, createConfig } from "wagmi";
 import { soneiumMinato } from "wagmi/chains";
 import { injected, metaMask } from "wagmi/connectors";
 
-export const config = createConfig({
+// export const config = createConfig({
+//   chains: [soneiumMinato],
+//   transports: {
+//     [soneiumMinato.id]: http(),
+//   },
+//   connectors: [injected(), metaMask()],
+// });
+
+export const config = getDefaultConfig({
+  appName: "Soneium AA demo",
+  projectId: "SCS_AA",
   chains: [soneiumMinato],
-  transports: {
-    [soneiumMinato.id]: http(),
-  },
-  connectors: [injected(), metaMask()],
+  ssr: false,
 });
 
 export const AA_CONFIG = {

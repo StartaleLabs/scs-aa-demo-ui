@@ -1,27 +1,23 @@
 import "./App.css";
-import { useAccount } from "wagmi";
-import { Account } from "./Account";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { SmartAccount } from "./SmartAcc";
-import { WalletOptions } from "./WaletOptions";
+
 function App() {
   return (
-    <>
-      <div>Testing AA</div>
-      <div>
-        <ConnectWallet />
+    <div className="wrapper">
+      <div className="header">
+        <img src="/startale_logo.webp" alt="Startale logo" />
+        <div className="connect">
+          <ConnectButton />
+        </div>
       </div>
 
       <div>
         <SmartAccount />
       </div>
-    </>
+    </div>
   );
 }
 
-function ConnectWallet() {
-  const { isConnected } = useAccount();
-  if (isConnected) return <Account />;
-  return <WalletOptions />;
-}
 
 export default App;

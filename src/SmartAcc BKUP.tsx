@@ -128,7 +128,7 @@ export function SmartAccount() {
         accountImplementationAddress: KERNEL_IMPLEMENTATION_ADDRESS as Hex,
         useMetaFactory: true,
         metaFactoryAddress: STAKER_FACTORY_ADDRESS as Hex,
-        index: BigInt(2022),
+        index: BigInt(2021),
       });
 
       setSmartAccount(account);
