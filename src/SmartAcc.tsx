@@ -93,7 +93,7 @@ export function SmartAccount({
   const [kernelClient, setKernelClient] = useState<any>();
   const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
   const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
-  const [instanceIndex, setInstanceIndex] = useState(2022);
+  const [instanceIndex, setInstanceIndex] = useState(2024);
   const [socialRecoveryModule, setSocialRecoveryModule] = useState<Module>();
   const [smartSessionsModule, setSmartSessionsModule] = useState<Module>();
   const [guardian1, setGuardian1] = useState<`0x${string}`>(
@@ -210,6 +210,9 @@ export function SmartAccount({
     const recoveryModuleInstalled = await kernelClient.isModuleInstalled(socialRecovery);
     setIsRecoveryModuleInstalled(recoveryModuleInstalled);
     console.log("Is Recovery Module Installed: ", recoveryModuleInstalled);
+    if (recoveryModuleInstalled) {
+      addLine("Recovery Module already installed.");
+    }
 
     // Smart Sessions module
 
@@ -225,6 +228,9 @@ export function SmartAccount({
     setIsSessionModuleInstalled(isSmartSessionsModuleInstalled);
     console.log("Is Smart Sessions Module Installed: ", isSmartSessionsModuleInstalled);
     setSmartSessionsModule(smartSessions);
+    if (isSmartSessionsModuleInstalled) {
+      addLine("Smart Sessions Module already installed.");
+    }
   };
 
   const installRecoveryModule = async () => {
@@ -237,6 +243,8 @@ export function SmartAccount({
     if (!socialRecoveryModule) {
       throw new Error("Social recovery module not initialized");
     }
+
+    toggleLoading();
     const initDataArg = encodePacked(
       ["address", "bytes"],
       [
@@ -307,6 +315,9 @@ export function SmartAccount({
       console.log("User operation included", result);
       const isModuleInstalledNow = await kernelClient.isModuleInstalled(socialRecoveryModule);
       console.log("Is Module Installed: ", isModuleInstalledNow);
+      addLine("Recovery Module installed successfully");
+      setIsRecoveryModuleInstalled(true);
+      toggleLoading();
     } else {
       console.log("Module is already installed");
     }
@@ -605,45 +616,53 @@ export function SmartAccount({
         )}
         {smartAccount && <div>Smart account address: {smartAccount.address}</div>}
       </Section>
-      <Section title="Social Recovery Module">
-        {!isRecoveryModuleInstalled ? (
-          <div>
-            <label htmlFor="guardian1">Guardian 1</label>
-            <input
-              name="guardian1"
-              id="guardian1"
-              type="text"
-              placeholder="Recovery address 1"
-              value={guardian1}
-              onChange={(e) => setGuardian1(e.target.value as `0x${string}`)}
-            />
-            <label htmlFor="guardian2">Guardian 2</label>
-            <input
-              name="guardian2"
-              id="guardian2"
-              type="text"
-              placeholder="Recovery address 2"
-              value={guardian2}
-              onChange={(e) => setGuardian2(e.target.value as `0x${string}`)}
-            />
-            <button type="button" onClick={installRecoveryModule}>
-              Install Recovery Module
-            </button>
-          </div>
-        ) : (
-          <div>Recovery Module installed</div>
-        )}
-      </Section>
+      {smartAccount && (
+        <>
+          <Section title="Social Recovery Module">
+            {!isRecoveryModuleInstalled ? (
+              <div className="inputGroup">
+                <div>
+                  <label htmlFor="guardian1">Guardian 1</label>
+                  <input
+                    name="guardian1"
+                    id="guardian1"
+                    type="text"
+                    placeholder="Recovery address 1"
+                    value={guardian1}
+                    onChange={(e) => setGuardian1(e.target.value as `0x${string}`)}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="guardian2">Guardian 2</label>
+                  <input
+                    name="guardian2"
+                    id="guardian2"
+                    type="text"
+                    placeholder="Recovery address 2"
+                    value={guardian2}
+                    onChange={(e) => setGuardian2(e.target.value as `0x${string}`)}
+                  />
+                </div>
+                <button type="button" onClick={installRecoveryModule}>
+                  Install Recovery Module
+                </button>
+              </div>
+            ) : (
+              <div>Recovery Module installed</div>
+            )}
+          </Section>
 
-      <Section title="Session Module">
-        {!isSessionModuleInstalled ? (
-          <button type="button" onClick={handleInstallSessionModule}>
-            Install Session Module
-          </button>
-        ) : (
-          <div>Session Module installed</div>
-        )}
-      </Section>
+          <Section title="Session Module">
+            {!isSessionModuleInstalled ? (
+              <button type="button" onClick={handleInstallSessionModule}>
+                Install Session Module
+              </button>
+            ) : (
+              <div>Session Module installed</div>
+            )}
+          </Section>
+        </>
+      )}
     </div>
   );
 }
