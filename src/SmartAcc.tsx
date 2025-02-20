@@ -602,7 +602,6 @@ export function SmartAccount() {
 
   return (
     <div>
-      <h1>Smart account</h1>
       <div>{status}</div>
       <button type="button" onClick={handleInstantiateSmartAccount}>
         Instantiate Smart Account

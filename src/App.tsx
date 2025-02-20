@@ -11,9 +11,11 @@ function App() {
           <ConnectButton />
         </div>
       </div>
-
-      <div>
-        <SmartAccount />
+      <div className="content">
+        <div className="input">
+          <SmartAccount />
+        </div>
+        <div className="output">Output</div>
       </div>
     </div>
   );

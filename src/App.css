@@ -24,3 +24,30 @@
     height: 50px;
   }
 }
+
+.content {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding: 2rem 0;
+}
+
+.input {
+  flex: 0 0 40%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.output {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  background-color: #1d1d1d; /* Slightly darker than #242424 */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* Light, subtle border */
+  padding: 1rem;
+  font-family: 'Courier New', Courier, monospace;
+  overflow-y: auto; /* Enables scrolling if content overflows */
+  height: 80vh;
+}
