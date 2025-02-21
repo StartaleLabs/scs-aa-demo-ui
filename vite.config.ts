@@ -14,5 +14,5 @@ export default defineConfig({
       },
     },
   },
-  base: "/scs-aa-demo-ui/",
+  base: "/",
 });
