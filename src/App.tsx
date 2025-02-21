@@ -6,16 +6,12 @@ import { Output, type OutputHandle } from "./Output";
 import { SmartAccount } from "./SmartAcc";
 
 function App() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState("");
   const outputRef = useRef<OutputHandle | null>(null);
   const { isConnected, address } = useAccount();
 
   const handleAddLine = (line: string) => {
     outputRef.current?.addLine(`> ${line}`);
-  };
-
-  const toggleLoading = () => {
-    setIsLoading((prev: boolean) => !prev);
   };
 
   useEffect(() => {
@@ -31,8 +27,8 @@ function App() {
         </div>
       </div>
       <div className="content">
-        <SmartAccount toggleLoading={toggleLoading} addLine={handleAddLine} />
-        <Output ref={outputRef} isLoading={isLoading} />
+        <SmartAccount addLine={handleAddLine} setLoadingText={setLoadingText} />
+        <Output ref={outputRef} loadingText={loadingText} />
       </div>
     </div>
   );

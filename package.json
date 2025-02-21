@@ -16,7 +16,9 @@
     "@zerodev/sdk": "^5.4.21",
     "permissionless": "^0.2.34",
     "react": "^19.0.0",
+    "react-dice-roll": "^1.2.2",
     "react-dom": "^19.0.0",
+    "roll-a-die": "^2.0.1",
     "viem": "^2.23.2",
     "wagmi": "^2.14.11"
   },

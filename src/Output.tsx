@@ -5,10 +5,10 @@ export type OutputHandle = {
 };
 
 type OutputProps = {
-  isLoading?: boolean;
+  loadingText?: string; // Controls the loading animation externally
 };
 
-export const Output = forwardRef<OutputHandle, OutputProps>(({ isLoading = false }, ref) => {
+export const Output = forwardRef<OutputHandle, OutputProps>(({ loadingText }, ref) => {
   const [lines, setLines] = useState<string[]>([]);
   const [loadingDots, setLoadingDots] = useState("");
 
@@ -20,8 +20,9 @@ export const Output = forwardRef<OutputHandle, OutputProps>(({ isLoading = false
   }));
 
   // Handle blinking dots animation when isLoading is true
+  // Handle the blinking dots animation based on loadingText presence
   useEffect(() => {
-    if (!isLoading) {
+    if (!loadingText) {
       setLoadingDots("");
       return;
     }
@@ -30,10 +31,10 @@ export const Output = forwardRef<OutputHandle, OutputProps>(({ isLoading = false
     const interval = setInterval(() => {
       setLoadingDots(".".repeat((count % 3) + 1)); // Cycle between ".", "..", "..."
       count++;
-    }, 500); // Change dots every 500ms
+    }, 500);
 
-    return () => clearInterval(interval); // Cleanup on unmount or when isLoading turns false
-  }, [isLoading]);
+    return () => clearInterval(interval); // Clear interval when loading stops
+  }, [loadingText]);
 
   return (
     <div className="output">
@@ -42,7 +43,12 @@ export const Output = forwardRef<OutputHandle, OutputProps>(({ isLoading = false
           {line}
         </div>
       ))}
-      {isLoading && <div className="line">Loading{loadingDots}</div>}
+      {loadingText && (
+        <div className="line">
+          {loadingText}
+          {loadingDots}
+        </div>
+      )}
     </div>
   );
 });

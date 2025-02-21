@@ -29,6 +29,7 @@ import {
   encodePacked,
   pad,
   toBytes,
+  toFunctionSelector,
   toHex,
   zeroAddress,
 } from "viem";
@@ -55,13 +56,15 @@ const {
   PAYMASTER_CONTRACT_ADDRESS,
   ACCOUNT_RECOVERY_MODULE_ADDRESS,
   OWNABLE_VALIDATOR_ADDRESS,
-  COUNTER_CONTRACT_ADDRESS,
   SMART_SESSIONS_MODULE_ADDRESS,
+  DICE_ROLL_LEDGER_ADDRESS,
 } = AA_CONFIG;
 import { getAccountNonce } from "@zerodev/sdk/actions";
+import Dice from "react-dice-roll";
 import { Section } from "./Section";
-import { Counter as CounterAbi } from "./abi/Counter";
+import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
 import { enablingSessionsAbi } from "./abi/SmartSessionAbi";
+
 const scsContext = { calculateGasLimits: false, policyId: "sudo" };
 
 const chain = soneiumMinato;
@@ -80,16 +83,16 @@ const paymasterClient = createPaymasterClient({
 });
 
 export function SmartAccount({
-  toggleLoading,
+  setLoadingText,
   addLine,
-}: { toggleLoading: () => void; addLine: (line: string) => void }) {
+}: { setLoadingText: (text: string) => void; addLine: (line: string) => void }) {
   const connectedAccount = useAccount();
 
   const [smartAccount, setSmartAccount] = useState<CreateKernelAccountReturnType>();
   const [kernelClient, setKernelClient] = useState<any>();
   const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
   const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
-  const [instanceIndex, setInstanceIndex] = useState(2040);
+  const [instanceIndex, setInstanceIndex] = useState(2041);
   const [socialRecoveryModule, setSocialRecoveryModule] = useState<Module>();
   const [smartSessionsModule, setSmartSessionsModule] = useState<Module>();
   const [sessionOwner, setSessionOwner] = useState<Account>();
@@ -242,7 +245,7 @@ export function SmartAccount({
       throw new Error("Social recovery module not initialized");
     }
 
-    toggleLoading();
+    setLoadingText("Installing recovery module");
     const initDataArg = encodePacked(
       ["address", "bytes"],
       [
@@ -315,7 +318,7 @@ export function SmartAccount({
       console.log("Is Module Installed: ", isModuleInstalledNow);
       addLine("Recovery Module installed successfully");
       setIsRecoveryModuleInstalled(true);
-      toggleLoading();
+      setLoadingText("");
     } else {
       console.log("Module is already installed");
     }
@@ -333,7 +336,7 @@ export function SmartAccount({
         throw new Error("Smart sessions module not initialized");
       }
       // Todo: verify if registering a selector is needed with USE mode as well.
-      toggleLoading();
+      setLoadingText("Installing session module");
       const context = encodePacked(
         ["address", "bytes"],
         [
@@ -363,48 +366,23 @@ export function SmartAccount({
       const isSmartSessionsModuleInstalledNow =
         await kernelClient.isModuleInstalled(smartSessionsModule);
 
-      // const trustAttestersAction = getTrustAttestersAction({
-      //   threshold: 1,
-      //   attesters: [
-      //     RHINESTONE_ATTESTER_ADDRESS, // Rhinestone Attester
-      //     MOCK_ATTESTER_ADDRESS, // Mock Attester - do not use in production
-      //   ],
-      // });
-
-      // const userOpHash1 = await kernelClient.sendUserOperation({
-      //   account: smartAccount,
-      //   calls: [
-      //     {
-      //       to: trustAttestersAction.target,
-      //       value: BigInt(0),
-      //       data: trustAttestersAction.callData,
-      //     },
-      //   ],
-      // });
-
-      // const receipt1 = await bundlerClient.waitForUserOperationReceipt({
-      //   hash: userOpHash1,
-      // });
-
-      // console.log("User Operation hash: ", receipt1.receipt.transactionHash);
-      // console.log("Trust Attesters action executed successfully");
-
       console.log("Is Smart Sessions Module Installed Now: ", isSmartSessionsModuleInstalledNow);
       setIsSessionModuleInstalled(true);
       addLine("Smart Sessions Module installed successfully");
-      toggleLoading();
+      setLoadingText("");
     } else {
       console.log("Module is already installed");
     }
   };
 
   const createSession = async () => {
-    toggleLoading();
+    setLoadingText("Creating session");
     const sessionOwnerPk = generatePrivateKey();
     const sessionOwner = privateKeyToAccount(sessionOwnerPk);
     addLine(`Session Owner: ${sessionOwner.address}`);
     console.log("Session Owner: ", sessionOwner);
 
+    const selector = toFunctionSelector("writeDiceRoll(uint256)");
     const session: Session = {
       sessionValidator: OWNABLE_VALIDATOR_ADDRESS,
       sessionValidatorInitData: encodeValidationData({
@@ -419,8 +397,8 @@ export function SmartAccount({
       },
       actions: [
         {
-          actionTarget: COUNTER_CONTRACT_ADDRESS, // an address as the target of the session execution
-          actionTargetSelector: "0x06661abd" as Hex, // function selector to be used in the execution, in this case count() // cast sig "count()" to hex
+          actionTarget: DICE_ROLL_LEDGER_ADDRESS, // an address as the target of the session execution
+          actionTargetSelector: selector, // function selector to be used in the execution, in this case count() // cast sig "count()" to hex
           actionPolicies: [getSudoPolicy()],
         },
       ],
@@ -467,13 +445,14 @@ export function SmartAccount({
     setSession(session);
     setSessionOwner(sessionOwner);
 
+    console.log(session, session.actions);
     addLine(`Session created for owner: ${sessionOwner.address}`);
-    toggleLoading();
+    setLoadingText("");
     console.log("User Operation hash to enable session: ", receipt2.receipt.transactionHash);
     console.log("Session enabled successfully");
   };
 
-  const handleSession = async () => {
+  const rollDice = async (value: number) => {
     // Followed below as well
     // https://docs.rhinestone.wtf/module-registry/usage/mock-attestation
 
@@ -488,7 +467,8 @@ export function SmartAccount({
     if (!session) {
       throw new Error("Session not created yet");
     }
-    toggleLoading();
+    addLine(`You scored ${value}!`);
+    setLoadingText("Writing dice roll result to chain");
     console.log("account address: ", smartAccount?.address);
     const permissionId = getPermissionId({
       session,
@@ -521,21 +501,21 @@ export function SmartAccount({
       [SmartSessionMode.USE, permissionId, mockSig],
     );
 
+    const encodedData = encodeFunctionData({
+      abi: DiceRollLedgerAbi,
+      functionName: "writeDiceRoll",
+      args: [BigInt(value)],
+    });
+
     const userOperation = await kernelClient.prepareUserOperation({
       account: smartAccount,
       calls: [
         {
           to: session.actions[0].actionTarget,
           value: BigInt(0),
-          data: session.actions[0].actionTargetSelector,
+          data: encodedData,
         },
       ],
-      // verificationGasLimit: BigInt(200000),
-      // postOpGasLimit: BigInt(100000),
-      // maxFeePerGas: BigInt(10000000),
-      // callGasLimit: BigInt(10000000),
-      // preVerificationGas: BigInt(100000000),
-      // paymasterVerificationGasLimit: BigInt(200000),
       nonce,
       signature: dummySigEncoded,
     });
@@ -580,16 +560,19 @@ export function SmartAccount({
     console.log("User Operation hash to execute session: ", receiptFinal.receipt.transactionHash);
     console.log("Session executed successfully");
 
-    const counterStateAfter = (await publicClient.readContract({
-      address: COUNTER_CONTRACT_ADDRESS,
-      abi: CounterAbi,
-      functionName: "counters",
+    const ledgerStateAfter = (await publicClient.readContract({
+      address: DICE_ROLL_LEDGER_ADDRESS,
+      abi: DiceRollLedgerAbi,
+      functionName: "getAllRolls",
       args: [smartAccount?.address],
-    })) as bigint;
-    addLine("Session tx executed successfully");
-    addLine(`Counter state after session execution: ${counterStateAfter}`);
-    toggleLoading();
-    console.log("Counter state after session execution: ", counterStateAfter);
+    })) as number[];
+    addLine("Result written to chain successfully");
+    addLine(`Your results so far: ${ledgerStateAfter}`);
+    addLine(
+      `Your score total: ${ledgerStateAfter.reduce((a, b) => BigInt(a) + BigInt(b), BigInt(0))}`,
+    );
+    setLoadingText("");
+    console.log("Counter state after session execution: ", ledgerStateAfter);
   };
 
   return (
@@ -656,16 +639,22 @@ export function SmartAccount({
             </Section>
           )}
           {session && (
-            <Section title="Execute Session">
-              <button type="button" onClick={handleSession}>
-                Execute Session
-              </button>
+            <Section title="Execute Session Tx">
+              <div id="diceTarget">
+                <Dice cheatValue={getRandomDiceValue()} size={100} onRoll={rollDice} />
+              </div>
             </Section>
           )}
         </>
       )}
     </div>
   );
+}
+
+type dieResult = 1 | 2 | 3 | 4 | 5 | 6;
+
+function getRandomDiceValue(): dieResult {
+  return (Math.floor(Math.random() * 6) + 1) as dieResult;
 }
 
 export const encodeValidatorNonceKey = ({
