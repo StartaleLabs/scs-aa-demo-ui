@@ -98,3 +98,17 @@
   }
 
 }
+
+.diceContainer {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem 0;
+}
+
+.instructionText {
+  width: 100%;
+  text-align: center;
+  padding-bottom: 1rem;
+}

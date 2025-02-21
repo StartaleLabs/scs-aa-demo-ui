@@ -623,24 +623,25 @@ export function SmartAccount({
 
           <Section title="Session Module">
             {isSessionModuleInstalled ? (
-              <div>Session Module installed</div>
+              <div className="inputGroup">
+                <div>Session Module installed</div>
+                <button type="button" onClick={createSession}>
+                  Create a new Session
+                </button>
+              </div>
             ) : (
-              <button type="button" onClick={installSessionModule}>
-                Install Session Module
-              </button>
+              <div className="inputGroup">
+                <button type="button" onClick={installSessionModule}>
+                  Install Session Module
+                </button>
+              </div>
             )}
           </Section>
 
-          {isSessionModuleInstalled && (
-            <Section title="Create Session">
-              <button type="button" onClick={createSession}>
-                Create Session
-              </button>
-            </Section>
-          )}
           {session && (
-            <Section title="Execute Session Tx">
-              <div id="diceTarget">
+            <Section title="Play the dice game">
+              <div className="instructionText">Roll a die without signing the transaction!</div>
+              <div className="diceContainer">
                 <Dice cheatValue={getRandomDiceValue()} size={100} onRoll={rollDice} />
               </div>
             </Section>
