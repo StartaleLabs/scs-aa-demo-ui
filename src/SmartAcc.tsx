@@ -3,13 +3,11 @@ import {
   type Session,
   SmartSessionMode,
   encodeValidationData,
-  getOwnableValidator,
   getOwnableValidatorMockSignature,
   getPermissionId,
   getSmartSessionsValidator,
   getSocialRecoveryValidator,
   getSudoPolicy,
-  getTrustAttestersAction,
 } from "@rhinestone/module-sdk";
 import { signerToEcdsaValidator } from "@zerodev/ecdsa-validator";
 import {
@@ -44,7 +42,6 @@ import {
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { soneiumMinato } from "viem/chains";
 import { useAccount } from "wagmi";
-import { OwnableValidatorAbi } from "./abi/OwnableValidator";
 import { AA_CONFIG } from "./config";
 const {
   MINATO_RPC,
@@ -57,8 +54,6 @@ const {
   PAYMASTER_SERVICE_URL,
   PAYMASTER_CONTRACT_ADDRESS,
   ACCOUNT_RECOVERY_MODULE_ADDRESS,
-  RHINESTONE_ATTESTER_ADDRESS,
-  MOCK_ATTESTER_ADDRESS,
   OWNABLE_VALIDATOR_ADDRESS,
   COUNTER_CONTRACT_ADDRESS,
   SMART_SESSIONS_MODULE_ADDRESS,
@@ -94,11 +89,9 @@ export function SmartAccount({
   const [kernelClient, setKernelClient] = useState<any>();
   const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
   const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
-  const [instanceIndex, setInstanceIndex] = useState(2029);
+  const [instanceIndex, setInstanceIndex] = useState(2034);
   const [socialRecoveryModule, setSocialRecoveryModule] = useState<Module>();
   const [smartSessionsModule, setSmartSessionsModule] = useState<Module>();
-  const [ownableValidatorModule, setOwnableValidatorModule] = useState<Module>();
-  const [isOwnableValidatorInstalled, setIsOwnableValidatorInstalled] = useState(false);
   const [sessionOwner, setSessionOwner] = useState<Account>();
   const [session, setSession] = useState<Session>();
   const [guardian1, setGuardian1] = useState<`0x${string}`>(
@@ -236,35 +229,6 @@ export function SmartAccount({
     if (isSmartSessionsModuleInstalled) {
       addLine("Smart Sessions Module already installed.");
     }
-
-    // Ownable Validator Module
-    const ownableValidator = getOwnableValidator({
-      owners: [connectedAccount.address as Address],
-      threshold: 1,
-      hook: zeroAddress,
-    });
-
-    ownableValidator.address = OWNABLE_VALIDATOR_ADDRESS;
-    ownableValidator.module = OWNABLE_VALIDATOR_ADDRESS;
-
-    ownableValidator.initData = encodePacked(
-      ["address", "bytes"],
-      [
-        zeroAddress,
-        encodeAbiParameters(
-          [{ type: "bytes" }, { type: "bytes" }],
-          [ownableValidator.initData, "0x"],
-        ),
-      ],
-    );
-
-    setOwnableValidatorModule(ownableValidator);
-    const isOwnableValidatorInstalled = await kernelClient.isModuleInstalled(ownableValidator);
-    setIsOwnableValidatorInstalled(isOwnableValidatorInstalled);
-    console.log("Is Ownable Validator Installed: ", isOwnableValidatorInstalled);
-    if (isOwnableValidatorInstalled) {
-      addLine("Ownable Validator Module already installed.");
-    }
   };
 
   const installRecoveryModule = async () => {
@@ -399,31 +363,31 @@ export function SmartAccount({
       const isSmartSessionsModuleInstalledNow =
         await kernelClient.isModuleInstalled(smartSessionsModule);
 
-      const trustAttestersAction = getTrustAttestersAction({
-        threshold: 1,
-        attesters: [
-          RHINESTONE_ATTESTER_ADDRESS, // Rhinestone Attester
-          MOCK_ATTESTER_ADDRESS, // Mock Attester - do not use in production
-        ],
-      });
+      // const trustAttestersAction = getTrustAttestersAction({
+      //   threshold: 1,
+      //   attesters: [
+      //     RHINESTONE_ATTESTER_ADDRESS, // Rhinestone Attester
+      //     MOCK_ATTESTER_ADDRESS, // Mock Attester - do not use in production
+      //   ],
+      // });
 
-      const userOpHash1 = await kernelClient.sendUserOperation({
-        account: smartAccount,
-        calls: [
-          {
-            to: trustAttestersAction.target,
-            value: BigInt(0),
-            data: trustAttestersAction.callData,
-          },
-        ],
-      });
+      // const userOpHash1 = await kernelClient.sendUserOperation({
+      //   account: smartAccount,
+      //   calls: [
+      //     {
+      //       to: trustAttestersAction.target,
+      //       value: BigInt(0),
+      //       data: trustAttestersAction.callData,
+      //     },
+      //   ],
+      // });
 
-      const receipt1 = await bundlerClient.waitForUserOperationReceipt({
-        hash: userOpHash1,
-      });
+      // const receipt1 = await bundlerClient.waitForUserOperationReceipt({
+      //   hash: userOpHash1,
+      // });
 
-      console.log("User Operation hash: ", receipt1.receipt.transactionHash);
-      console.log("Trust Attesters action executed successfully");
+      // console.log("User Operation hash: ", receipt1.receipt.transactionHash);
+      // console.log("Trust Attesters action executed successfully");
 
       console.log("Is Smart Sessions Module Installed Now: ", isSmartSessionsModuleInstalledNow);
       setIsSessionModuleInstalled(true);
@@ -432,28 +396,6 @@ export function SmartAccount({
     } else {
       console.log("Module is already installed");
     }
-  };
-
-  const installOwnableValidator = async () => {
-    toggleLoading();
-    const opHashInstallOwnableVal = await kernelClient.installModule(ownableValidatorModule);
-    console.log("Operation hash: ", opHashInstallOwnableVal);
-    const result1 = await bundlerClient.waitForUserOperationReceipt({
-      hash: opHashInstallOwnableVal,
-    });
-    const owners = (await publicClient.readContract({
-      address: OWNABLE_VALIDATOR_ADDRESS,
-      abi: OwnableValidatorAbi,
-      functionName: "getOwners",
-      args: [smartAccount?.address],
-    })) as Address[];
-    console.log("All Owners: ", owners);
-
-    console.log("Operation result to install ownableValidator: ", result1.receipt.transactionHash);
-    console.log("Ownable Validator installed successfully");
-    setIsOwnableValidatorInstalled(true);
-    addLine("Ownable Validator Module installed successfully");
-    toggleLoading();
   };
 
   const createSession = async () => {
@@ -705,18 +647,8 @@ export function SmartAccount({
               </button>
             )}
           </Section>
+
           {isSessionModuleInstalled && (
-            <Section title="Ownable Validator Module">
-              {isOwnableValidatorInstalled ? (
-                <div>Ownable Validator Module installed</div>
-              ) : (
-                <button type="button" onClick={installOwnableValidator}>
-                  Install Ownable Validator Module
-                </button>
-              )}
-            </Section>
-          )}
-          {isOwnableValidatorInstalled && (
             <Section title="Create Session">
               <button type="button" onClick={createSession}>
                 Create Session
