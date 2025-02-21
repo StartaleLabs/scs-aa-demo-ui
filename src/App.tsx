@@ -2,9 +2,9 @@ import "./App.css";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
+import startaleLogo from "../public/startale_logo.webp";
 import { Output, type OutputHandle } from "./Output";
 import { SmartAccount } from "./SmartAcc";
-
 function App() {
   const [loadingText, setLoadingText] = useState("");
   const outputRef = useRef<OutputHandle | null>(null);
@@ -21,7 +21,7 @@ function App() {
   return (
     <div className="wrapper">
       <div className="header">
-        <img src="/startale_logo.webp" alt="Startale logo" />
+        <img src={startaleLogo} alt="Startale logo" />
         <div className="connect">
           <ConnectButton />
         </div>
