@@ -17,7 +17,7 @@ import {
 } from "@zerodev/sdk";
 import { KERNEL_V3_2 } from "@zerodev/sdk/constants";
 import { erc7579Actions } from "permissionless/actions/erc7579";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import {
   http,
   type Account,
@@ -92,7 +92,7 @@ export function SmartAccount({
   const [kernelClient, setKernelClient] = useState<any>();
   const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
   const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
-  const [instanceIndex, setInstanceIndex] = useState(2041);
+  const [instanceIndex, setInstanceIndex] = useState(0);
   const [socialRecoveryModule, setSocialRecoveryModule] = useState<Module>();
   const [smartSessionsModule, setSmartSessionsModule] = useState<Module>();
   const [sessionOwner, setSessionOwner] = useState<Account>();
@@ -103,6 +103,22 @@ export function SmartAccount({
   const [guardian2, setGuardian2] = useState<`0x${string}`>(
     "0x2f1e36d9Caed0EEF7341ade09BD7238b4E8794aa",
   );
+
+  useEffect(() => {
+    if (!connectedAccount?.address) return;
+
+    const storedIndex = localStorage.getItem("instanceIndex");
+
+    if (storedIndex) {
+      const indexMap = JSON.parse(storedIndex) as Record<string, number>;
+      const storedAccountIndex = indexMap[connectedAccount.address] ?? 0;
+      setInstanceIndex(storedAccountIndex);
+    } else {
+      // If no index map exists, initialize with 0 for this account
+      localStorage.setItem("instanceIndex", JSON.stringify({ [connectedAccount.address]: 0 }));
+      setInstanceIndex(0);
+    }
+  }, [connectedAccount?.address]);
 
   useEffect(() => {
     if (smartAccount) {
@@ -122,6 +138,9 @@ export function SmartAccount({
 
   const handleInstantiateSmartAccount = async () => {
     try {
+      if (!connectedAccount?.address) {
+        throw new Error("No connected account");
+      }
       // Get an ECDSA validator instance based on the connected signer
       const ecdsaValidator = await signerToEcdsaValidator(publicClient, {
         signer: window.ethereum,
@@ -141,6 +160,12 @@ export function SmartAccount({
         metaFactoryAddress: STAKER_FACTORY_ADDRESS as Hex,
         index: BigInt(instanceIndex),
       });
+
+      const storedIndex = localStorage.getItem("instanceIndex");
+      const indexMap = storedIndex ? JSON.parse(storedIndex) : {};
+
+      indexMap[connectedAccount.address] = instanceIndex;
+      localStorage.setItem("instanceIndex", JSON.stringify(indexMap));
 
       setSmartAccount(account);
       console.log("Smart Account: ", account);
@@ -453,17 +478,6 @@ export function SmartAccount({
   };
 
   const rollDice = async (value: number) => {
-    // Followed below as well
-    // https://docs.rhinestone.wtf/module-registry/usage/mock-attestation
-
-    // Install Ownable Validator
-
-    // Now that the smart session is installed and account has trusted attesters..
-
-    // Note: Can keep fixed session owner
-
-    // Now let's use it.. with session key signature.
-
     if (!session) {
       throw new Error("Session not created yet");
     }
@@ -520,6 +534,7 @@ export function SmartAccount({
       signature: dummySigEncoded,
     });
 
+    addLine("User operation prepared");
     console.log("User Operation: ", userOperation);
 
     const userOpHashToSign = getUserOperationHash({
@@ -539,7 +554,7 @@ export function SmartAccount({
     const sessionKeySignature = await sessionOwner.signMessage({
       message: { raw: userOpHashToSign },
     });
-
+    addLine("User operation signed");
     console.log("Session Key Signature: ", sessionKeySignature);
 
     const userOpSignature = encodePacked(
@@ -552,14 +567,16 @@ export function SmartAccount({
     userOperation.signature = userOpSignature;
 
     const finalOpHash = await kernelClient.sendUserOperation(userOperation as any);
-
+    addLine("User operation sent");
+    setLoadingText("Waiting for block confirmation");
     const receiptFinal = await bundlerClient.waitForUserOperationReceipt({
       hash: finalOpHash,
     });
+    addLine("User operation confirmed");
 
     console.log("User Operation hash to execute session: ", receiptFinal.receipt.transactionHash);
     console.log("Session executed successfully");
-
+    setLoadingText("Retrieving results from chain");
     const ledgerStateAfter = (await publicClient.readContract({
       address: DICE_ROLL_LEDGER_ADDRESS,
       abi: DiceRollLedgerAbi,
@@ -578,11 +595,22 @@ export function SmartAccount({
   return (
     <div className="input">
       <Section title="Smart Account instance">
-        {!smartAccount && (
+        <div className="inputGroup">
           <button type="button" onClick={handleInstantiateSmartAccount}>
-            Get a smart account instance
+            Get a new smart account instance
           </button>
-        )}
+          <div className="indexInputWrapper">
+            <label htmlFor="instanceIndex">Custom nonce</label>
+            <input
+              className="indexInput"
+              name="instanceIndex"
+              id="instanceIndex"
+              type="number"
+              value={instanceIndex}
+              onChange={(e) => setInstanceIndex(Number(e.target.value))}
+            />
+          </div>
+        </div>
         {smartAccount && <div>Smart account address: {smartAccount.address}</div>}
       </Section>
       {smartAccount && (

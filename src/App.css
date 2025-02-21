@@ -107,8 +107,24 @@
   padding: 1rem 0;
 }
 
+
+
 .instructionText {
   width: 100%;
   text-align: center;
   padding-bottom: 1rem;
+}
+
+.indexInputWrapper {
+  display: flex;
+  width: 100%;
+  flex-direction: row;
+  gap: 1rem;
+  justify-content: flex-end !important;
+  padding-bottom: 2rem;
+}
+
+#instanceIndex {
+  width: 50px;
+  flex: 0;
 }
