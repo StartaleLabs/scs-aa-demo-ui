@@ -135,6 +135,15 @@ export function SmartAccount({
     }
   }, [kernelClient]);
 
+  function handleErrors(error: Error, text?: string) {
+    setLoadingText("");
+    addLine(text || "Something has gone wrong.");
+    addLine(`Error: ${(error as Error).message}`);
+    addLine(
+      "Please refresh the page, try creating a new session, or create a new smart account instance with a different nonce.",
+    );
+  }
+
   const handleInstantiateSmartAccount = async () => {
     try {
       if (!connectedAccount?.address) {
@@ -170,403 +179,433 @@ export function SmartAccount({
       console.log("Smart Account: ", account);
     } catch (error) {
       console.error("Error instantiating smart account", error);
-      addLine(`Error instantiating smart account: ${(error as Error).message}`);
+      handleErrors(error as Error, "Error instantiating smart account");
     }
   };
 
   const initClient = async () => {
-    const kernelClientInstance = createKernelAccountClient({
-      account: smartAccount,
-      chain: soneiumMinato,
-      bundlerTransport: http(BUNDLER_URL),
-      client: publicClient,
-      paymaster: {
-        async getPaymasterData(pmDataParams: GetPaymasterDataParameters) {
-          console.log("Called getPaymasterData: ", pmDataParams);
-          const paymasterResponse = await paymasterClient.getPaymasterData(pmDataParams);
-          console.log("Paymaster Response: ", paymasterResponse);
-          return paymasterResponse;
+    try {
+      const kernelClientInstance = createKernelAccountClient({
+        account: smartAccount,
+        chain: soneiumMinato,
+        bundlerTransport: http(BUNDLER_URL),
+        client: publicClient,
+        paymaster: {
+          async getPaymasterData(pmDataParams: GetPaymasterDataParameters) {
+            console.log("Called getPaymasterData: ", pmDataParams);
+            const paymasterResponse = await paymasterClient.getPaymasterData(pmDataParams);
+            console.log("Paymaster Response: ", paymasterResponse);
+            return paymasterResponse;
+          },
+          async getPaymasterStubData(pmStubDataParams: GetPaymasterDataParameters) {
+            console.log("Called getPaymasterStubData: ", pmStubDataParams);
+            const paymasterStubResponse =
+              await paymasterClient.getPaymasterStubData(pmStubDataParams);
+            console.log("Paymaster Stub Response: ", paymasterStubResponse);
+            // return paymasterStubResponse;
+            return {
+              ...paymasterStubResponse,
+              paymasterAndData: undefined,
+              paymaster: PAYMASTER_CONTRACT_ADDRESS as Hex,
+              paymasterData: paymasterStubResponse.paymasterData || "0x",
+              paymasterVerificationGasLimit:
+                paymasterStubResponse.paymasterVerificationGasLimit || BigInt(200000),
+              paymasterPostOpGasLimit:
+                paymasterStubResponse.paymasterPostOpGasLimit || BigInt(100000),
+            };
+          },
         },
-        async getPaymasterStubData(pmStubDataParams: GetPaymasterDataParameters) {
-          console.log("Called getPaymasterStubData: ", pmStubDataParams);
-          const paymasterStubResponse =
-            await paymasterClient.getPaymasterStubData(pmStubDataParams);
-          console.log("Paymaster Stub Response: ", paymasterStubResponse);
-          // return paymasterStubResponse;
-          return {
-            ...paymasterStubResponse,
-            paymasterAndData: undefined,
-            paymaster: PAYMASTER_CONTRACT_ADDRESS as Hex,
-            paymasterData: paymasterStubResponse.paymasterData || "0x",
-            paymasterVerificationGasLimit:
-              paymasterStubResponse.paymasterVerificationGasLimit || BigInt(200000),
-            paymasterPostOpGasLimit:
-              paymasterStubResponse.paymasterPostOpGasLimit || BigInt(100000),
-          };
-        },
-      },
-      paymasterContext: scsContext,
+        paymasterContext: scsContext,
 
-      userOperation: {
-        estimateFeesPerGas: async () => {
-          return {
-            maxFeePerGas: BigInt(10000000),
-            maxPriorityFeePerGas: BigInt(10000000),
-          };
+        userOperation: {
+          estimateFeesPerGas: async () => {
+            return {
+              maxFeePerGas: BigInt(10000000),
+              maxPriorityFeePerGas: BigInt(10000000),
+            };
+          },
         },
-      },
-    }).extend(erc7579Actions());
+      }).extend(erc7579Actions());
 
-    console.log("Kernel Client: ", kernelClientInstance);
-    setKernelClient(kernelClientInstance);
+      console.log("Kernel Client: ", kernelClientInstance);
+      setKernelClient(kernelClientInstance);
+    } catch (error) {
+      console.error("Error initializing kernel client", error);
+      handleErrors(error as Error, "Error initializing kernel client");
+    }
   };
 
   const checkModules = async () => {
-    // Social recovery module
-    const socialRecovery = getSocialRecoveryValidator({
-      threshold: 2,
-      guardians: [guardian1, guardian2],
-    });
+    try {
+      // Social recovery module
+      const socialRecovery = getSocialRecoveryValidator({
+        threshold: 2,
+        guardians: [guardian1, guardian2],
+      });
 
-    socialRecovery.module = ACCOUNT_RECOVERY_MODULE_ADDRESS;
-    socialRecovery.address = ACCOUNT_RECOVERY_MODULE_ADDRESS;
+      socialRecovery.module = ACCOUNT_RECOVERY_MODULE_ADDRESS;
+      socialRecovery.address = ACCOUNT_RECOVERY_MODULE_ADDRESS;
 
-    setSocialRecoveryModule(socialRecovery);
-    const recoveryModuleInstalled = await kernelClient.isModuleInstalled(socialRecovery);
-    setIsRecoveryModuleInstalled(recoveryModuleInstalled);
-    console.log("Is Recovery Module Installed: ", recoveryModuleInstalled);
-    if (recoveryModuleInstalled) {
-      addLine("Recovery Module already installed.");
-    }
+      setSocialRecoveryModule(socialRecovery);
+      const recoveryModuleInstalled = await kernelClient.isModuleInstalled(socialRecovery);
+      setIsRecoveryModuleInstalled(recoveryModuleInstalled);
+      console.log("Is Recovery Module Installed: ", recoveryModuleInstalled);
+      if (recoveryModuleInstalled) {
+        addLine("Recovery Module already installed.");
+      }
 
-    // Smart Sessions module
+      // Smart Sessions module
 
-    const smartSessions = getSmartSessionsValidator({});
-    console.log("Smart Sessions: ", smartSessions);
+      const smartSessions = getSmartSessionsValidator({});
+      console.log("Smart Sessions: ", smartSessions);
 
-    // Todo: make this work with module-sdk addresses of smart session validator and ownable validator
-    // Override our own addresses
-    smartSessions.address = SMART_SESSIONS_MODULE_ADDRESS;
-    smartSessions.module = SMART_SESSIONS_MODULE_ADDRESS;
+      // Todo: make this work with module-sdk addresses of smart session validator and ownable validator
+      // Override our own addresses
+      smartSessions.address = SMART_SESSIONS_MODULE_ADDRESS;
+      smartSessions.module = SMART_SESSIONS_MODULE_ADDRESS;
 
-    const isSmartSessionsModuleInstalled = await kernelClient.isModuleInstalled(smartSessions);
-    setIsSessionModuleInstalled(isSmartSessionsModuleInstalled);
-    console.log("Is Smart Sessions Module Installed: ", isSmartSessionsModuleInstalled);
-    setSmartSessionsModule(smartSessions);
-    if (isSmartSessionsModuleInstalled) {
-      addLine("Smart Sessions Module already installed.");
+      const isSmartSessionsModuleInstalled = await kernelClient.isModuleInstalled(smartSessions);
+      setIsSessionModuleInstalled(isSmartSessionsModuleInstalled);
+      console.log("Is Smart Sessions Module Installed: ", isSmartSessionsModuleInstalled);
+      setSmartSessionsModule(smartSessions);
+      if (isSmartSessionsModuleInstalled) {
+        addLine("Smart Sessions Module already installed.");
+      }
+    } catch (error) {
+      console.error("Error checking modules", error);
+      handleErrors(error as Error, "Error checking modules");
     }
   };
 
   const installRecoveryModule = async () => {
-    if (!smartAccount) {
-      throw new Error("Smart account not initialized");
-    }
-    if (!kernelClient) {
-      throw new Error("Kernel client not initialized");
-    }
-    if (!socialRecoveryModule) {
-      throw new Error("Social recovery module not initialized");
-    }
-
-    setLoadingText("Installing recovery module");
-    const initDataArg = encodePacked(
-      ["address", "bytes"],
-      [
-        zeroAddress,
-        encodeAbiParameters(
-          [{ type: "bytes" }, { type: "bytes" }],
-          [socialRecoveryModule.initData || "0x", "0x"],
-        ),
-      ],
-    );
-    const calls = [
-      {
-        to: smartAccount.address,
-        value: BigInt(0),
-        data: encodeFunctionData({
-          abi: [
-            {
-              name: "installModule",
-              type: "function",
-              stateMutability: "nonpayable",
-              inputs: [
-                {
-                  type: "uint256",
-                  name: "moduleTypeId",
-                },
-                {
-                  type: "address",
-                  name: "module",
-                },
-                {
-                  type: "bytes",
-                  name: "initData",
-                },
-              ],
-              outputs: [],
-            },
-          ],
-          functionName: "installModule",
-          args: [BigInt(1), ACCOUNT_RECOVERY_MODULE_ADDRESS, initDataArg],
-        }),
-      },
-    ];
-
-    const installModuleUserOpHash = await kernelClient.sendUserOperation({
-      callData: await kernelClient.account.encodeCalls(calls),
-    });
-
-    await kernelClient.waitForUserOperationReceipt({
-      hash: installModuleUserOpHash,
-    });
-
-    addLine("Recovery Module installed successfully");
-    setIsRecoveryModuleInstalled(true);
-    setLoadingText("");
-  };
-
-  const installSessionModule = async () => {
-    if (!isSessionModuleInstalled) {
+    try {
       if (!smartAccount) {
         throw new Error("Smart account not initialized");
       }
       if (!kernelClient) {
         throw new Error("Kernel client not initialized");
       }
-      if (!smartSessionsModule) {
-        throw new Error("Smart sessions module not initialized");
+      if (!socialRecoveryModule) {
+        throw new Error("Social recovery module not initialized");
       }
-      // Todo: verify if registering a selector is needed with USE mode as well.
-      setLoadingText("Installing session module");
-      const context = encodePacked(
+
+      setLoadingText("Installing recovery module");
+      const initDataArg = encodePacked(
         ["address", "bytes"],
         [
           zeroAddress,
           encodeAbiParameters(
-            [{ type: "bytes" }, { type: "bytes" }, { type: "bytes" }],
-            [smartSessionsModule.initData || "0x", "0x", "0xe9ae5c53"],
+            [{ type: "bytes" }, { type: "bytes" }],
+            [socialRecoveryModule.initData || "0x", "0x"],
           ),
         ],
       );
+      const calls = [
+        {
+          to: smartAccount.address,
+          value: BigInt(0),
+          data: encodeFunctionData({
+            abi: [
+              {
+                name: "installModule",
+                type: "function",
+                stateMutability: "nonpayable",
+                inputs: [
+                  {
+                    type: "uint256",
+                    name: "moduleTypeId",
+                  },
+                  {
+                    type: "address",
+                    name: "module",
+                  },
+                  {
+                    type: "bytes",
+                    name: "initData",
+                  },
+                ],
+                outputs: [],
+              },
+            ],
+            functionName: "installModule",
+            args: [BigInt(1), ACCOUNT_RECOVERY_MODULE_ADDRESS, initDataArg],
+          }),
+        },
+      ];
 
-      const opHash = await kernelClient.installModule({
-        type: smartSessionsModule.type,
-        address: SMART_SESSIONS_MODULE_ADDRESS,
-        context: context,
+      const installModuleUserOpHash = await kernelClient.sendUserOperation({
+        callData: await kernelClient.account.encodeCalls(calls),
       });
 
-      console.log("Operation hash: ", opHash);
-
-      const result = await bundlerClient.waitForUserOperationReceipt({
-        hash: opHash,
+      await kernelClient.waitForUserOperationReceipt({
+        hash: installModuleUserOpHash,
       });
-      console.log("Operation result: ", result.receipt.transactionHash);
 
-      console.log("Smart Sessions Module installed successfully");
-
-      const isSmartSessionsModuleInstalledNow =
-        await kernelClient.isModuleInstalled(smartSessionsModule);
-
-      console.log("Is Smart Sessions Module Installed Now: ", isSmartSessionsModuleInstalledNow);
-      setIsSessionModuleInstalled(true);
-      addLine("Smart Sessions Module installed successfully");
+      addLine("Recovery Module installed successfully");
+      setIsRecoveryModuleInstalled(true);
       setLoadingText("");
-    } else {
-      console.log("Module is already installed");
+    } catch (error) {
+      console.error("Error installing recovery module", error);
+      handleErrors(error as Error, "Error installing recovery module");
+    }
+  };
+
+  const installSessionModule = async () => {
+    try {
+      if (!isSessionModuleInstalled) {
+        if (!smartAccount) {
+          throw new Error("Smart account not initialized");
+        }
+        if (!kernelClient) {
+          throw new Error("Kernel client not initialized");
+        }
+        if (!smartSessionsModule) {
+          throw new Error("Smart sessions module not initialized");
+        }
+        // Todo: verify if registering a selector is needed with USE mode as well.
+        setLoadingText("Installing session module");
+        const context = encodePacked(
+          ["address", "bytes"],
+          [
+            zeroAddress,
+            encodeAbiParameters(
+              [{ type: "bytes" }, { type: "bytes" }, { type: "bytes" }],
+              [smartSessionsModule.initData || "0x", "0x", "0xe9ae5c53"],
+            ),
+          ],
+        );
+
+        const opHash = await kernelClient.installModule({
+          type: smartSessionsModule.type,
+          address: SMART_SESSIONS_MODULE_ADDRESS,
+          context: context,
+        });
+
+        console.log("Operation hash: ", opHash);
+
+        const result = await bundlerClient.waitForUserOperationReceipt({
+          hash: opHash,
+        });
+        console.log("Operation result: ", result.receipt.transactionHash);
+
+        console.log("Smart Sessions Module installed successfully");
+
+        const isSmartSessionsModuleInstalledNow =
+          await kernelClient.isModuleInstalled(smartSessionsModule);
+
+        console.log("Is Smart Sessions Module Installed Now: ", isSmartSessionsModuleInstalledNow);
+        setIsSessionModuleInstalled(true);
+        addLine("Smart Sessions Module installed successfully");
+        setLoadingText("");
+      } else {
+        console.log("Module is already installed");
+      }
+    } catch (error) {
+      console.error("Error installing session module", error);
+      handleErrors(error as Error, "Error installing session module");
     }
   };
 
   const createSession = async () => {
-    setLoadingText("Creating session");
-    const sessionOwnerPk = generatePrivateKey();
-    const sessionOwner = privateKeyToAccount(sessionOwnerPk);
-    addLine(`Session Owner: ${sessionOwner.address}`);
-    console.log("Session Owner: ", sessionOwner);
+    try {
+      setLoadingText("Creating session");
+      const sessionOwnerPk = generatePrivateKey();
+      const sessionOwner = privateKeyToAccount(sessionOwnerPk);
+      addLine(`Session Owner: ${sessionOwner.address}`);
+      console.log("Session Owner: ", sessionOwner);
 
-    const selector = toFunctionSelector("writeDiceRoll(uint256)");
-    const session: Session = {
-      sessionValidator: OWNABLE_VALIDATOR_ADDRESS,
-      sessionValidatorInitData: encodeValidationData({
-        threshold: 1,
-        owners: [sessionOwner.address],
-      }),
-      salt: toHex(toBytes("0", { size: 32 })),
-      userOpPolicies: [getSudoPolicy()],
-      erc7739Policies: {
-        allowedERC7739Content: [],
-        erc1271Policies: [],
-      },
-      actions: [
-        {
-          actionTarget: DICE_ROLL_LEDGER_ADDRESS, // an address as the target of the session execution
-          actionTargetSelector: selector, // function selector to be used in the execution, in this case count() // cast sig "count()" to hex
-          actionPolicies: [getSudoPolicy()],
+      const selector = toFunctionSelector("writeDiceRoll(uint256)");
+      const session: Session = {
+        sessionValidator: OWNABLE_VALIDATOR_ADDRESS,
+        sessionValidatorInitData: encodeValidationData({
+          threshold: 1,
+          owners: [sessionOwner.address],
+        }),
+        salt: toHex(toBytes("0", { size: 32 })),
+        userOpPolicies: [getSudoPolicy()],
+        erc7739Policies: {
+          allowedERC7739Content: [],
+          erc1271Policies: [],
         },
-      ],
-      chainId: BigInt(chain.id),
-      permitERC4337Paymaster: true,
-    };
+        actions: [
+          {
+            actionTarget: DICE_ROLL_LEDGER_ADDRESS, // an address as the target of the session execution
+            actionTargetSelector: selector, // function selector to be used in the execution, in this case count() // cast sig "count()" to hex
+            actionPolicies: [getSudoPolicy()],
+          },
+        ],
+        chainId: BigInt(chain.id),
+        permitERC4337Paymaster: true,
+      };
 
-    console.log("Session: ", session);
+      console.log("Session: ", session);
 
-    const sessions: Session[] = [session];
+      const sessions: Session[] = [session];
 
-    const preparePermissionData = encodeFunctionData({
-      abi: enablingSessionsAbi,
-      functionName: "enableSessions",
-      args: [sessions],
-    });
+      const preparePermissionData = encodeFunctionData({
+        abi: enablingSessionsAbi,
+        functionName: "enableSessions",
+        args: [sessions],
+      });
 
-    console.log("Prepare Permission Data: ", preparePermissionData);
+      console.log("Prepare Permission Data: ", preparePermissionData);
 
-    // return {
-    //   action: {
-    //     target: SMART_SESSIONS_ADDRESS,
-    //     value: BigInt(0),
-    //     callData: preparePermissionData
-    //   },
-    //   permissionIds: permissionIds,
-    //   sessions
-    // }
+      // return {
+      //   action: {
+      //     target: SMART_SESSIONS_ADDRESS,
+      //     value: BigInt(0),
+      //     callData: preparePermissionData
+      //   },
+      //   permissionIds: permissionIds,
+      //   sessions
+      // }
 
-    const userOpHashEnableSession = await kernelClient.sendUserOperation({
-      account: smartAccount,
-      calls: [
-        {
-          to: SMART_SESSIONS_MODULE_ADDRESS,
-          value: BigInt(0),
-          data: preparePermissionData,
-        },
-      ],
-    });
+      const userOpHashEnableSession = await kernelClient.sendUserOperation({
+        account: smartAccount,
+        calls: [
+          {
+            to: SMART_SESSIONS_MODULE_ADDRESS,
+            value: BigInt(0),
+            data: preparePermissionData,
+          },
+        ],
+      });
 
-    const receipt2 = await bundlerClient.waitForUserOperationReceipt({
-      hash: userOpHashEnableSession,
-    });
-    setSession(session);
-    setSessionOwner(sessionOwner);
+      const receipt2 = await bundlerClient.waitForUserOperationReceipt({
+        hash: userOpHashEnableSession,
+      });
+      setSession(session);
+      setSessionOwner(sessionOwner);
 
-    console.log(session, session.actions);
-    addLine(`Session created for owner: ${sessionOwner.address}`);
-    setLoadingText("");
-    console.log("User Operation hash to enable session: ", receipt2.receipt.transactionHash);
-    console.log("Session enabled successfully");
+      console.log(session, session.actions);
+      addLine(`Session created for owner: ${sessionOwner.address}`);
+      setLoadingText("");
+      console.log("User Operation hash to enable session: ", receipt2.receipt.transactionHash);
+      console.log("Session enabled successfully");
+    } catch (error) {
+      console.error("Error creating session", error);
+      handleErrors(error as Error, "Error creating session");
+    }
   };
 
   const rollDice = async (value: number) => {
-    if (!session) {
-      throw new Error("Session not created yet");
+    try {
+      if (!session) {
+        throw new Error("Session not created yet");
+      }
+      addLine(`You scored ${value}!`);
+      setLoadingText("Writing dice roll result to chain");
+      console.log("account address: ", smartAccount?.address);
+      const permissionId = getPermissionId({
+        session,
+      });
+
+      const nonceKey = encodeValidatorNonceKey({
+        validator: SMART_SESSIONS_MODULE_ADDRESS,
+      });
+
+      console.log("nonceKey: ", toHex(nonceKey));
+
+      const nonce = await getAccountNonce(publicClient, {
+        address: smartAccount?.address as Address,
+        entryPointAddress: ENTRY_POINT_ADDRESS,
+        key: nonceKey,
+      });
+
+      console.log("Nonce Hex: ", toHex(nonce));
+
+      const mockSig = getOwnableValidatorMockSignature({
+        threshold: 1,
+      });
+
+      console.log("mockSig: ", mockSig);
+
+      console.log("permissionId: ", permissionId);
+
+      const dummySigEncoded = encodePacked(
+        ["bytes1", "bytes32", "bytes"],
+        [SmartSessionMode.USE, permissionId, mockSig],
+      );
+
+      const encodedData = encodeFunctionData({
+        abi: DiceRollLedgerAbi,
+        functionName: "writeDiceRoll",
+        args: [BigInt(value)],
+      });
+
+      const userOperation = await kernelClient.prepareUserOperation({
+        account: smartAccount,
+        calls: [
+          {
+            to: session.actions[0].actionTarget,
+            value: BigInt(0),
+            data: encodedData,
+          },
+        ],
+        nonce,
+        signature: dummySigEncoded,
+      });
+
+      addLine("User operation prepared");
+      console.log("User Operation: ", userOperation);
+
+      const userOpHashToSign = getUserOperationHash({
+        chainId: chain.id,
+        entryPointAddress: ENTRY_POINT_ADDRESS,
+        entryPointVersion: "0.7",
+        userOperation,
+      });
+
+      console.log("User Operation hash to sign: ", userOpHashToSign);
+      if (!sessionOwner) {
+        throw new Error("Session owner not created yet");
+      }
+      if (!sessionOwner.signMessage) {
+        throw new Error("Session owner does not have signMessage method");
+      }
+      const sessionKeySignature = await sessionOwner.signMessage({
+        message: { raw: userOpHashToSign },
+      });
+      addLine("User operation signed");
+      console.log("Session Key Signature: ", sessionKeySignature);
+
+      const userOpSignature = encodePacked(
+        ["bytes1", "bytes32", "bytes"],
+        [SmartSessionMode.USE, permissionId, sessionKeySignature],
+      );
+
+      console.log("User Operation Signature: ", userOpSignature);
+
+      userOperation.signature = userOpSignature;
+
+      const finalOpHash = await kernelClient.sendUserOperation(userOperation as any);
+      addLine("User operation sent");
+      setLoadingText("Waiting for block confirmation");
+      const receiptFinal = await bundlerClient.waitForUserOperationReceipt({
+        hash: finalOpHash,
+      });
+      addLine("User operation confirmed");
+
+      console.log("User Operation hash to execute session: ", receiptFinal.receipt.transactionHash);
+      console.log("Session executed successfully");
+      setLoadingText("Retrieving results from chain");
+      const ledgerStateAfter = (await publicClient.readContract({
+        address: DICE_ROLL_LEDGER_ADDRESS,
+        abi: DiceRollLedgerAbi,
+        functionName: "getAllRolls",
+        args: [smartAccount?.address],
+      })) as number[];
+      addLine("Result written to chain successfully");
+      addLine(`Your results so far: ${ledgerStateAfter}`);
+      addLine(
+        `Your score total: ${ledgerStateAfter.reduce((a, b) => BigInt(a) + BigInt(b), BigInt(0))}`,
+      );
+      setLoadingText("");
+      console.log("Counter state after session execution: ", ledgerStateAfter);
+    } catch (error) {
+      console.error("Error rolling dice", error);
+      handleErrors(error as Error, "Error sending session tx");
     }
-    addLine(`You scored ${value}!`);
-    setLoadingText("Writing dice roll result to chain");
-    console.log("account address: ", smartAccount?.address);
-    const permissionId = getPermissionId({
-      session,
-    });
-
-    const nonceKey = encodeValidatorNonceKey({
-      validator: SMART_SESSIONS_MODULE_ADDRESS,
-    });
-
-    console.log("nonceKey: ", toHex(nonceKey));
-
-    const nonce = await getAccountNonce(publicClient, {
-      address: smartAccount?.address as Address,
-      entryPointAddress: ENTRY_POINT_ADDRESS,
-      key: nonceKey,
-    });
-
-    console.log("Nonce Hex: ", toHex(nonce));
-
-    const mockSig = getOwnableValidatorMockSignature({
-      threshold: 1,
-    });
-
-    console.log("mockSig: ", mockSig);
-
-    console.log("permissionId: ", permissionId);
-
-    const dummySigEncoded = encodePacked(
-      ["bytes1", "bytes32", "bytes"],
-      [SmartSessionMode.USE, permissionId, mockSig],
-    );
-
-    const encodedData = encodeFunctionData({
-      abi: DiceRollLedgerAbi,
-      functionName: "writeDiceRoll",
-      args: [BigInt(value)],
-    });
-
-    const userOperation = await kernelClient.prepareUserOperation({
-      account: smartAccount,
-      calls: [
-        {
-          to: session.actions[0].actionTarget,
-          value: BigInt(0),
-          data: encodedData,
-        },
-      ],
-      nonce,
-      signature: dummySigEncoded,
-    });
-
-    addLine("User operation prepared");
-    console.log("User Operation: ", userOperation);
-
-    const userOpHashToSign = getUserOperationHash({
-      chainId: chain.id,
-      entryPointAddress: ENTRY_POINT_ADDRESS,
-      entryPointVersion: "0.7",
-      userOperation,
-    });
-
-    console.log("User Operation hash to sign: ", userOpHashToSign);
-    if (!sessionOwner) {
-      throw new Error("Session owner not created yet");
-    }
-    if (!sessionOwner.signMessage) {
-      throw new Error("Session owner does not have signMessage method");
-    }
-    const sessionKeySignature = await sessionOwner.signMessage({
-      message: { raw: userOpHashToSign },
-    });
-    addLine("User operation signed");
-    console.log("Session Key Signature: ", sessionKeySignature);
-
-    const userOpSignature = encodePacked(
-      ["bytes1", "bytes32", "bytes"],
-      [SmartSessionMode.USE, permissionId, sessionKeySignature],
-    );
-
-    console.log("User Operation Signature: ", userOpSignature);
-
-    userOperation.signature = userOpSignature;
-
-    const finalOpHash = await kernelClient.sendUserOperation(userOperation as any);
-    addLine("User operation sent");
-    setLoadingText("Waiting for block confirmation");
-    const receiptFinal = await bundlerClient.waitForUserOperationReceipt({
-      hash: finalOpHash,
-    });
-    addLine("User operation confirmed");
-
-    console.log("User Operation hash to execute session: ", receiptFinal.receipt.transactionHash);
-    console.log("Session executed successfully");
-    setLoadingText("Retrieving results from chain");
-    const ledgerStateAfter = (await publicClient.readContract({
-      address: DICE_ROLL_LEDGER_ADDRESS,
-      abi: DiceRollLedgerAbi,
-      functionName: "getAllRolls",
-      args: [smartAccount?.address],
-    })) as number[];
-    addLine("Result written to chain successfully");
-    addLine(`Your results so far: ${ledgerStateAfter}`);
-    addLine(
-      `Your score total: ${ledgerStateAfter.reduce((a, b) => BigInt(a) + BigInt(b), BigInt(0))}`,
-    );
-    setLoadingText("");
-    console.log("Counter state after session execution: ", ledgerStateAfter);
   };
 
   return (
