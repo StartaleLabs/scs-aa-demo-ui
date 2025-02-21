@@ -314,39 +314,17 @@ export function SmartAccount({
       },
     ];
 
-    console.log("Is recovery Module Installed: ", isRecoveryModuleInstalled);
+    const installModuleUserOpHash = await kernelClient.sendUserOperation({
+      callData: await kernelClient.account.encodeCalls(calls),
+    });
 
-    if (!isRecoveryModuleInstalled) {
-      const installModuleUserOpHash = await kernelClient.sendUserOperation({
-        callData: await kernelClient.account.encodeCalls(calls),
-        // calls: calls this also works..
-      });
+    await kernelClient.waitForUserOperationReceipt({
+      hash: installModuleUserOpHash,
+    });
 
-      // spinner.succeed(chalk.greenBright.bold.underline("User operation submitted to install the recovery module"));
-      // console.log("\n");
-      // spinner.start("Waiting for user operation to be included in a block");
-
-      const receiptNew = await kernelClient.waitForUserOperationReceipt({
-        hash: installModuleUserOpHash,
-      });
-      // console.log("User operation included", receipt);
-      console.log("transaction hash: ", receiptNew.receipt.transactionHash);
-
-      const ourBundlerClient = kernelClient.extend(bundlerActions);
-
-      const result = await ourBundlerClient.waitForUserOperationReceipt({
-        hash: installModuleUserOpHash,
-      });
-
-      console.log("User operation included", result);
-      const isModuleInstalledNow = await kernelClient.isModuleInstalled(socialRecoveryModule);
-      console.log("Is Module Installed: ", isModuleInstalledNow);
-      addLine("Recovery Module installed successfully");
-      setIsRecoveryModuleInstalled(true);
-      setLoadingText("");
-    } else {
-      console.log("Module is already installed");
-    }
+    addLine("Recovery Module installed successfully");
+    setIsRecoveryModuleInstalled(true);
+    setLoadingText("");
   };
 
   const installSessionModule = async () => {
