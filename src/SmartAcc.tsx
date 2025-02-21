@@ -17,7 +17,7 @@ import {
 } from "@zerodev/sdk";
 import { KERNEL_V3_2 } from "@zerodev/sdk/constants";
 import { erc7579Actions } from "permissionless/actions/erc7579";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   http,
   type Account,
@@ -35,7 +35,6 @@ import {
 } from "viem";
 import {
   type GetPaymasterDataParameters,
-  bundlerActions,
   createBundlerClient,
   createPaymasterClient,
   getUserOperationHash,
@@ -574,20 +573,26 @@ export function SmartAccount({
     <div className="input">
       <Section title="Smart Account instance">
         <div className="inputGroup">
-          <button type="button" onClick={handleInstantiateSmartAccount}>
-            Get a new smart account instance
-          </button>
-          <div className="indexInputWrapper">
-            <label htmlFor="instanceIndex">Custom nonce</label>
-            <input
-              className="indexInput"
-              name="instanceIndex"
-              id="instanceIndex"
-              type="number"
-              value={instanceIndex}
-              onChange={(e) => setInstanceIndex(Number(e.target.value))}
-            />
-          </div>
+          {connectedAccount?.address ? (
+            <>
+              <button type="button" onClick={handleInstantiateSmartAccount}>
+                Get a new smart account instance
+              </button>
+              <div className="indexInputWrapper">
+                <label htmlFor="instanceIndex">Custom nonce</label>
+                <input
+                  className="indexInput"
+                  name="instanceIndex"
+                  id="instanceIndex"
+                  type="number"
+                  value={instanceIndex}
+                  onChange={(e) => setInstanceIndex(Number(e.target.value))}
+                />
+              </div>
+            </>
+          ) : (
+            <div>Please connect your wallet</div>
+          )}
         </div>
         {smartAccount && <div>Smart account address: {smartAccount.address}</div>}
       </Section>

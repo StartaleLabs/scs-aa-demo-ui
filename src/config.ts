@@ -1,16 +1,6 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import type { Address, Hex } from "viem";
-import { http, createConfig } from "wagmi";
+import type { Address } from "viem";
 import { soneiumMinato } from "wagmi/chains";
-import { injected, metaMask } from "wagmi/connectors";
-
-// export const config = createConfig({
-//   chains: [soneiumMinato],
-//   transports: {
-//     [soneiumMinato.id]: http(),
-//   },
-//   connectors: [injected(), metaMask()],
-// });
 
 export const config = getDefaultConfig({
   appName: "Soneium AA demo",
@@ -20,9 +10,11 @@ export const config = getDefaultConfig({
 });
 
 export const AA_CONFIG = {
-  MINATO_RPC: `https://soneium-minato.rpc.scs.startale.com?apikey=${import.meta.env.VITE_APP_SCS_RPC_API_KEY}`,
-  BUNDLER_URL: `http://soneium-minato.dev.bundler.scs.startale.com?apikey=${import.meta.env.VITE_APP_SCS_BUNDLER_API_KEY}`,
-  PAYMASTER_SERVICE_URL: "/api/paymaster/dummy_key",
+  MINATO_RPC: "https://rpc.minato.soneium.org",
+  BUNDLER_URL: "http://soneium-minato.dev.bundler.scs.startale.com?apikey=scsadmin",
+  PAYMASTER_SERVICE_URL: import.meta.env.DEV
+    ? "/api/paymaster/dummy_key"
+    : "https://dev.paymaster.scs.startale.com/v1/paymaster/dummykey",
   ENTRY_POINT_ADDRESS: "0x0000000071727De22E5E9d8BAf0edAc6f37da032" as Address,
   SIMPLE_ACCOUNT_FACTORY_ADDRESS: "0x91E60e0613810449d098b0b5Ec8b51A0FE8c8985",
   COUNTER_CONTRACT_ADDRESS: "0x6bcf154A6B80fDE9bd1556d39C9bCbB19B539Bd8" as Address,
