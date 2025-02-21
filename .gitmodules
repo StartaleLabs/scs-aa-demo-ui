@@ -1,0 +1,3 @@
+[submodule "dice_roll_ledger/lib/forge-std"]
+	path = dice_roll_ledger/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
