@@ -89,7 +89,7 @@ export function SmartAccount({
   const [kernelClient, setKernelClient] = useState<any>();
   const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
   const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
-  const [instanceIndex, setInstanceIndex] = useState(2034);
+  const [instanceIndex, setInstanceIndex] = useState(2040);
   const [socialRecoveryModule, setSocialRecoveryModule] = useState<Module>();
   const [smartSessionsModule, setSmartSessionsModule] = useState<Module>();
   const [sessionOwner, setSessionOwner] = useState<Account>();
