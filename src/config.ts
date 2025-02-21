@@ -11,7 +11,7 @@ export const config = getDefaultConfig({
 
 export const AA_CONFIG = {
   MINATO_RPC: "https://rpc.minato.soneium.org",
-  BUNDLER_URL: "http://soneium-minato.dev.bundler.scs.startale.com?apikey=scsadmin",
+  BUNDLER_URL: "https://soneium-minato.dev.bundler.scs.startale.com?apikey=scsadmin",
   PAYMASTER_SERVICE_URL: import.meta.env.DEV
     ? "/api/paymaster/dummy_key"
     : "https://dev.paymaster.scs.startale.com/v1/paymaster?apikey=scsadmin-paymaster",
