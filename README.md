@@ -102,9 +102,15 @@ PAYMASTER_SERVICE_URL=https://dev.paymaster.scs.startale.com/v1/paymaster?apikey
    - Use `viem` to connect to the target chain.
 
    ```typescript
-    import {createPublicClient} from "viem";
     import {createBundlerClient, createPaymasterClient } from "viem/account-abstraction";
     import { soneiumMinato } from "viem/chains";
+    import {
+      createPublicClient
+      encodePacked,
+      encodeAbiParameters,
+      encodeFunctionData,
+      getAccountNonce,
+    } from "viem";
 
     const chain = soneiumMinato;
     const publicClient = createPublicClient({
@@ -382,6 +388,11 @@ Note: Paymaster actions and userOperation gas estimation are overridden for comp
     const mockSig = getOwnableValidatorMockSignature({
       threshold: 1,
     });
+
+    mySigEncoded = encodePacked(
+      ["bytes1", "bytes32", "bytes"],
+      [SmartSessionMode.USE, permissionId, mockSig],
+    );
 
     // Contract call enabled in session creation
     const encodedData = encodeFunctionData({
