@@ -89,19 +89,11 @@ export function SmartAccount({
 
   const [smartAccount, setSmartAccount] = useState<CreateKernelAccountReturnType>();
   const [kernelClient, setKernelClient] = useState<any>();
-  const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
   const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
   const [instanceIndex, setInstanceIndex] = useState(0);
-  const [socialRecoveryModule, setSocialRecoveryModule] = useState<Module>();
   const [smartSessionsModule, setSmartSessionsModule] = useState<Module>();
   const [sessionOwner, setSessionOwner] = useState<Account>();
   const [session, setSession] = useState<Session>();
-  const [guardian1, setGuardian1] = useState<`0x${string}`>(
-    "0xa277F2011A116034a459D61bC1CAE0ddAc4f5D15",
-  );
-  const [guardian2, setGuardian2] = useState<`0x${string}`>(
-    "0x2f1e36d9Caed0EEF7341ade09BD7238b4E8794aa",
-  );
 
   useEffect(() => {
     if (!connectedAccount?.address) return;
@@ -117,6 +109,7 @@ export function SmartAccount({
       localStorage.setItem("instanceIndex", JSON.stringify({ [connectedAccount.address]: 0 }));
       setInstanceIndex(0);
     }
+    handleInstantiateSmartAccount();
   }, [connectedAccount?.address]);
 
   useEffect(() => {
@@ -237,23 +230,6 @@ export function SmartAccount({
 
   const checkModules = async () => {
     try {
-      // Social recovery module
-      const socialRecovery = getSocialRecoveryValidator({
-        threshold: 2,
-        guardians: [guardian1, guardian2],
-      });
-
-      socialRecovery.module = ACCOUNT_RECOVERY_MODULE_ADDRESS;
-      socialRecovery.address = ACCOUNT_RECOVERY_MODULE_ADDRESS;
-
-      setSocialRecoveryModule(socialRecovery);
-      const recoveryModuleInstalled = await kernelClient.isModuleInstalled(socialRecovery);
-      setIsRecoveryModuleInstalled(recoveryModuleInstalled);
-      console.log("Is Recovery Module Installed: ", recoveryModuleInstalled);
-      if (recoveryModuleInstalled) {
-        addLine("Recovery Module already installed.");
-      }
-
       // Smart Sessions module
 
       const smartSessions = getSmartSessionsValidator({});
@@ -274,79 +250,6 @@ export function SmartAccount({
     } catch (error) {
       console.error("Error checking modules", error);
       handleErrors(error as Error, "Error checking modules");
-    }
-  };
-
-  const installRecoveryModule = async () => {
-    try {
-      if (!smartAccount) {
-        throw new Error("Smart account not initialized");
-      }
-      if (!kernelClient) {
-        throw new Error("Kernel client not initialized");
-      }
-      if (!socialRecoveryModule) {
-        throw new Error("Social recovery module not initialized");
-      }
-
-      setLoadingText("Installing recovery module");
-      const initDataArg = encodePacked(
-        ["address", "bytes"],
-        [
-          zeroAddress,
-          encodeAbiParameters(
-            [{ type: "bytes" }, { type: "bytes" }],
-            [socialRecoveryModule.initData || "0x", "0x"],
-          ),
-        ],
-      );
-      const calls = [
-        {
-          to: smartAccount.address,
-          value: BigInt(0),
-          data: encodeFunctionData({
-            abi: [
-              {
-                name: "installModule",
-                type: "function",
-                stateMutability: "nonpayable",
-                inputs: [
-                  {
-                    type: "uint256",
-                    name: "moduleTypeId",
-                  },
-                  {
-                    type: "address",
-                    name: "module",
-                  },
-                  {
-                    type: "bytes",
-                    name: "initData",
-                  },
-                ],
-                outputs: [],
-              },
-            ],
-            functionName: "installModule",
-            args: [BigInt(1), ACCOUNT_RECOVERY_MODULE_ADDRESS, initDataArg],
-          }),
-        },
-      ];
-
-      const installModuleUserOpHash = await kernelClient.sendUserOperation({
-        callData: await kernelClient.account.encodeCalls(calls),
-      });
-
-      await kernelClient.waitForUserOperationReceipt({
-        hash: installModuleUserOpHash,
-      });
-
-      addLine("Recovery Module installed successfully");
-      setIsRecoveryModuleInstalled(true);
-      setLoadingText("");
-    } catch (error) {
-      console.error("Error installing recovery module", error);
-      handleErrors(error as Error, "Error installing recovery module");
     }
   };
 
@@ -637,39 +540,7 @@ export function SmartAccount({
       </Section>
       {smartAccount && (
         <>
-          <Section title="Social Recovery Module (optional)">
-            {isRecoveryModuleInstalled ? (
-              <div>Recovery Module installed</div>
-            ) : (
-              <div className="inputGroup">
-                <div>
-                  <label htmlFor="guardian1">Guardian 1</label>
-                  <input
-                    name="guardian1"
-                    id="guardian1"
-                    type="text"
-                    placeholder="Recovery address 1"
-                    value={guardian1}
-                    onChange={(e) => setGuardian1(e.target.value as `0x${string}`)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="guardian2">Guardian 2</label>
-                  <input
-                    name="guardian2"
-                    id="guardian2"
-                    type="text"
-                    placeholder="Recovery address 2"
-                    value={guardian2}
-                    onChange={(e) => setGuardian2(e.target.value as `0x${string}`)}
-                  />
-                </div>
-                <button type="button" onClick={installRecoveryModule}>
-                  Install Recovery Module
-                </button>
-              </div>
-            )}
-          </Section>
+          <SocialRecoverySection />
 
           <Section title="Session Module">
             {isSessionModuleInstalled ? (
@@ -702,6 +573,135 @@ export function SmartAccount({
   );
 }
 
+function SocialRecoverySection({ kernelClient }: { kernelClient: any }) {
+  const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
+  const [socialRecoveryModule, setSocialRecoveryModule] = useState<Module>();
+  const [guardians, setGuardians] = useState<`0x${string}`[]>([]);
+
+  const checkIsRecoveryModuleInstalled = async () => {
+    // Social recovery module
+    const socialRecovery = getSocialRecoveryValidator({
+      threshold: 2,
+      guardians: [guardian1, guardian2],
+    });
+
+    socialRecovery.module = ACCOUNT_RECOVERY_MODULE_ADDRESS;
+    socialRecovery.address = ACCOUNT_RECOVERY_MODULE_ADDRESS;
+
+    setSocialRecoveryModule(socialRecovery);
+    const recoveryModuleInstalled = await kernelClient.isModuleInstalled(socialRecovery);
+    setIsRecoveryModuleInstalled(recoveryModuleInstalled);
+    console.log("Is Recovery Module Installed: ", recoveryModuleInstalled);
+    if (recoveryModuleInstalled) {
+      addLine("Recovery Module already installed.");
+    }
+  };
+
+  const installRecoveryModule = async () => {
+    try {
+      if (!smartAccount) {
+        throw new Error("Smart account not initialized");
+      }
+      if (!kernelClient) {
+        throw new Error("Kernel client not initialized");
+      }
+      if (!socialRecoveryModule) {
+        throw new Error("Social recovery module not initialized");
+      }
+
+      setLoadingText("Installing recovery module");
+      const initDataArg = encodePacked(
+        ["address", "bytes"],
+        [
+          zeroAddress,
+          encodeAbiParameters(
+            [{ type: "bytes" }, { type: "bytes" }],
+            [socialRecoveryModule.initData || "0x", "0x"],
+          ),
+        ],
+      );
+      const calls = [
+        {
+          to: smartAccount.address,
+          value: BigInt(0),
+          data: encodeFunctionData({
+            abi: [
+              {
+                name: "installModule",
+                type: "function",
+                stateMutability: "nonpayable",
+                inputs: [
+                  {
+                    type: "uint256",
+                    name: "moduleTypeId",
+                  },
+                  {
+                    type: "address",
+                    name: "module",
+                  },
+                  {
+                    type: "bytes",
+                    name: "initData",
+                  },
+                ],
+                outputs: [],
+              },
+            ],
+            functionName: "installModule",
+            args: [BigInt(1), ACCOUNT_RECOVERY_MODULE_ADDRESS, initDataArg],
+          }),
+        },
+      ];
+
+      const installModuleUserOpHash = await kernelClient.sendUserOperation({
+        callData: await kernelClient.account.encodeCalls(calls),
+      });
+
+      await kernelClient.waitForUserOperationReceipt({
+        hash: installModuleUserOpHash,
+      });
+
+      addLine("Recovery Module installed successfully");
+      setIsRecoveryModuleInstalled(true);
+      setLoadingText("");
+    } catch (error) {
+      console.error("Error installing recovery module", error);
+      handleErrors(error as Error, "Error installing recovery module");
+    }
+  };
+
+  return (
+    <Section title="Social Recovery Module (optional)">
+      <div className="inputGroup">
+        <div>
+          <label htmlFor="guardian1">Guardian 1</label>
+          <input
+            name="guardian1"
+            id="guardian1"
+            type="text"
+            placeholder="Recovery address 1"
+            value={guardian1}
+            onChange={(e) => setGuardian1(e.target.value as `0x${string}`)}
+          />
+        </div>
+        <div>
+          <label htmlFor="guardian2">Guardian 2</label>
+          <input
+            name="guardian2"
+            id="guardian2"
+            type="text"
+            placeholder="Recovery address 2"
+            value={guardian2}
+            onChange={(e) => setGuardian2(e.target.value as `0x${string}`)}
+          />
+        </div>
+        <button type="button" onClick={installRecoveryModule}>
+          Install Recovery Module
+        </button>
+      </div>
+    </Section>
+  );
+}
 type dieResult = 1 | 2 | 3 | 4 | 5 | 6;
 
 function getRandomDiceValue(): dieResult {
