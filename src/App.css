@@ -46,8 +46,8 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  background-color: #1d1d1d; /* Slightly darker than #242424 */
-  border: 1px solid rgba(255, 255, 255, 0.2); /* Light, subtle border */
+  background-color: #102a43; /* Deep Blue Gray */
+  border: 1px solid #334E68; /* Muted Steel Blue */
   padding: 1rem;
   font-family: 'Courier New', Courier, monospace;
   overflow-y: auto; /* Enables scrolling if content overflows */
@@ -65,14 +65,15 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: #102a43; /* Deep Blue Gray */
+  border: 1px solid #334E68; /* Muted Steel Blue */
 }
 
 .sectionTitle {
   padding: 0.5rem;
   text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  background-color: #1d1d1d; /* Slightly darker than #242424 */
+  background-color: #112D4E; /* Navy Blue */
+  border-bottom: 1px solid #334E68; /* Muted Steel Blue */
 }
 
 .sectionContent {
@@ -93,8 +94,9 @@
   input {
     flex: 1;
     padding: 0.5rem;
+    background-color: #102a43; /* Deep Blue Gray */
     border: 1px solid rgba(255, 255, 255, 0.2);
-    background-color: #1d1d1d; /* Slightly darker than #242424 */
+    color: rgba(255, 255, 255, 0.87);
   }
 
 }
