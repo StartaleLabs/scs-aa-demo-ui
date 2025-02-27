@@ -644,7 +644,7 @@ function SocialRecoverySection({
   const [guardians, setGuardians] = useState<`0x${string}`[]>([
     "0xa277F2011A116034a459D61bC1CAE0ddAc4f5D15",
   ]);
-  const [guardian, setGuardian] = useState<`0x${string}` | undefined>();
+  const [guardian, setGuardian] = useState<`0x${string}` | "">("");
 
   useEffect(() => {
     if (kernelClient) {
@@ -694,9 +694,9 @@ function SocialRecoverySection({
         throw new Error("Kernel client not initialized");
       }
       if (!isRecoveryModuleInstalled) {
-        installRecoveryModule();
+        await installRecoveryModule();
       } else {
-        addNewGuardianToExisting();
+        await addNewGuardianToExisting();
       }
     } catch (error) {
       console.error("Error adding new guardian", error);
@@ -704,7 +704,31 @@ function SocialRecoverySection({
     }
   };
 
-  const addNewGuardianToExisting = async () => {};
+  const addNewGuardianToExisting = async () => {
+    console.log("adding guardian to existing");
+    const calls = [
+      {
+        to: ACCOUNT_RECOVERY_MODULE_ADDRESS,
+        value: BigInt(0),
+        data: encodeFunctionData({
+          abi: SocialRecoveryAbi,
+          functionName: "addGuardian",
+          args: [guardian],
+        }),
+      },
+    ];
+    const addGuardianUserOpHash = await kernelClient.sendUserOperation({
+      callData: await kernelClient.account.encodeCalls(calls),
+    });
+
+    await kernelClient.waitForUserOperationReceipt({
+      hash: addGuardianUserOpHash,
+    });
+
+    console.log("Guardian added successfully");
+    addLine("Guardian added successfully");
+    await getGuardians();
+  };
   const installRecoveryModule = async () => {
     try {
       const socialRecoveryModule = getSocialRecoveryValidator({
@@ -773,7 +797,39 @@ function SocialRecoverySection({
     }
   };
 
-  const handleRemoveGuardian = (guardian: `0x${string}`) => {};
+  const handleRemoveGuardian = async (guardian: `0x${string}`) => {
+    const SENTINEL_ADDRESS = "0x0000000000000000000000000000000000000001";
+    const index = guardians.indexOf(guardian);
+    if (index < 0) {
+      console.error("Guardian not found in list");
+      return;
+    }
+
+    const prevGuardian = index === 0 ? SENTINEL_ADDRESS : guardians[index - 1];
+
+    const calls = [
+      {
+        to: ACCOUNT_RECOVERY_MODULE_ADDRESS,
+        value: BigInt(0),
+        data: encodeFunctionData({
+          abi: SocialRecoveryAbi,
+          functionName: "removeGuardian",
+          args: [prevGuardian, guardian],
+        }),
+      },
+    ];
+    const removeGuardianUserOpHash = await kernelClient.sendUserOperation({
+      callData: await kernelClient.account.encodeCalls(calls),
+    });
+
+    await kernelClient.waitForUserOperationReceipt({
+      hash: removeGuardianUserOpHash,
+    });
+
+    console.log("Guardian removed successfully");
+    addLine("Guardian removed successfully");
+    await getGuardians();
+  };
 
   return (
     <Section title="Social Recovery Module (optional)">
@@ -805,14 +861,12 @@ function SocialRecoverySection({
           type="button"
           onClick={() => {
             if (guardian) {
-              setGuardians([...guardians, guardian]);
-              setGuardian(undefined);
+              handleAddNewGuardian();
             }
           }}
         >
           Add Guardian
         </button>
-
       </div>
     </Section>
   );
