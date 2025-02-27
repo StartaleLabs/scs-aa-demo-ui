@@ -133,7 +133,7 @@ export function SmartAccount({
   const [smartAccount, setSmartAccount] = useState<CreateKernelAccountReturnType>();
   const [kernelClient, setKernelClient] = useState<KernelClientInstanceType>();
   const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
-  const [instanceIndex, setInstanceIndex] = useState(0);
+  const [instanceIndex, setInstanceIndex] = useState(22);
   const [smartSessionsModule, setSmartSessionsModule] = useState<Module>();
   const [sessionOwner, setSessionOwner] = useState<Account>();
   const [session, setSession] = useState<Session>();
@@ -141,17 +141,17 @@ export function SmartAccount({
   useEffect(() => {
     if (!connectedAccount?.address) return;
 
-    const storedIndex = localStorage.getItem("instanceIndex");
+    // const storedIndex = localStorage.getItem("instanceIndex");
 
-    if (storedIndex) {
-      const indexMap = JSON.parse(storedIndex) as Record<string, number>;
-      const storedAccountIndex = indexMap[connectedAccount.address] ?? 0;
-      setInstanceIndex(storedAccountIndex);
-    } else {
-      // If no index map exists, initialize with 0 for this account
-      localStorage.setItem("instanceIndex", JSON.stringify({ [connectedAccount.address]: 0 }));
-      setInstanceIndex(0);
-    }
+    // if (storedIndex) {
+    //   const indexMap = JSON.parse(storedIndex) as Record<string, number>;
+    //   const storedAccountIndex = indexMap[connectedAccount.address] ?? 0;
+    //   setInstanceIndex(storedAccountIndex);
+    // } else {
+    //   // If no index map exists, initialize with 0 for this account
+    //   localStorage.setItem("instanceIndex", JSON.stringify({ [connectedAccount.address]: 0 }));
+    //   setInstanceIndex(0);
+    // }
     handleInstantiateSmartAccount();
   }, [connectedAccount?.address]);
 
@@ -205,11 +205,11 @@ export function SmartAccount({
         index: BigInt(instanceIndex),
       });
 
-      const storedIndex = localStorage.getItem("instanceIndex");
-      const indexMap = storedIndex ? JSON.parse(storedIndex) : {};
+      // const storedIndex = localStorage.getItem("instanceIndex");
+      // const indexMap = storedIndex ? JSON.parse(storedIndex) : {};
 
-      indexMap[connectedAccount.address] = instanceIndex;
-      localStorage.setItem("instanceIndex", JSON.stringify(indexMap));
+      // indexMap[connectedAccount.address] = instanceIndex;
+      // localStorage.setItem("instanceIndex", JSON.stringify(indexMap));
 
       setSmartAccount(account);
       console.log("Smart Account: ", account);
@@ -278,12 +278,12 @@ export function SmartAccount({
       if (!kernelClient) throw new Error("Kernel client not initialized");
 
       const smartSessions = getSmartSessionsValidator({});
+      smartSessions.address = SMART_SESSIONS_MODULE_ADDRESS;
+      smartSessions.module = SMART_SESSIONS_MODULE_ADDRESS;
       console.log("Smart Sessions: ", smartSessions);
 
       // Todo: make this work with module-sdk addresses of smart session validator and ownable validator
       // Override our own addresses
-      smartSessions.address = SMART_SESSIONS_MODULE_ADDRESS;
-      smartSessions.module = SMART_SESSIONS_MODULE_ADDRESS;
 
       const isSmartSessionsModuleInstalled = await kernelClient.isModuleInstalled(smartSessions);
       setIsSessionModuleInstalled(isSmartSessionsModuleInstalled);
@@ -298,7 +298,7 @@ export function SmartAccount({
     }
   };
 
-  const installSessionModule = async () => {
+  const getInstallSessionCall = async () => {
     try {
       if (!isSessionModuleInstalled) {
         if (!smartAccount) {
@@ -312,6 +312,7 @@ export function SmartAccount({
         }
         // Todo: verify if registering a selector is needed with USE mode as well.
         setLoadingText("Installing session module");
+
         const context = encodePacked(
           ["address", "bytes"],
           [
@@ -359,6 +360,53 @@ export function SmartAccount({
       if (!kernelClient) {
         throw new Error("Kernel client not initialized");
       }
+
+      const calls = [];
+
+      if (!isSessionModuleInstalled) {
+        const initDataArg = encodePacked(
+          ["address", "bytes"],
+          [
+            zeroAddress,
+            encodeAbiParameters(
+              [{ type: "bytes" }, { type: "bytes" }, { type: "bytes" }],
+              [smartSessionsModule?.initData || "0x", "0x", "0xe9ae5c53"],
+            ),
+          ],
+        );
+
+        calls.push({
+          to: kernelClient.account.address,
+          value: BigInt(0),
+          data: encodeFunctionData({
+            abi: [
+              {
+                name: "installModule",
+                type: "function",
+                stateMutability: "nonpayable",
+                inputs: [
+                  {
+                    type: "uint256",
+                    name: "moduleTypeId",
+                  },
+                  {
+                    type: "address",
+                    name: "module",
+                  },
+                  {
+                    type: "bytes",
+                    name: "initData",
+                  },
+                ],
+                outputs: [],
+              },
+            ],
+            functionName: "installModule",
+            args: [BigInt(1), SMART_SESSIONS_MODULE_ADDRESS, initDataArg],
+          }),
+        });
+      }
+
       setLoadingText("Creating session");
       const sessionOwnerPk = generatePrivateKey();
       const sessionOwner = privateKeyToAccount(sessionOwnerPk);
@@ -411,15 +459,14 @@ export function SmartAccount({
       //   sessions
       // }
 
+      calls.push({
+        to: SMART_SESSIONS_MODULE_ADDRESS,
+        value: BigInt(0),
+        data: preparePermissionData,
+      });
       const userOpHashEnableSession = await kernelClient.sendUserOperation({
         account: smartAccount,
-        calls: [
-          {
-            to: SMART_SESSIONS_MODULE_ADDRESS,
-            value: BigInt(0),
-            data: preparePermissionData,
-          },
-        ],
+        calls,
       });
 
       const receipt2 = await bundlerClient.waitForUserOperationReceipt({
@@ -564,7 +611,7 @@ export function SmartAccount({
 
   return (
     <div className="input">
-      <Section title="Smart Account instance">
+      {/* <Section title="Smart Account instance">
         <div className="inputGroup">
           {connectedAccount?.address ? (
             <>
@@ -588,7 +635,7 @@ export function SmartAccount({
           )}
         </div>
         {smartAccount && <div>Smart account address: {smartAccount.address}</div>}
-      </Section>
+      </Section> */}
       {smartAccount && (
         <>
           <SocialRecoverySection
@@ -599,20 +646,12 @@ export function SmartAccount({
           />
 
           <Section title="Session Module">
-            {isSessionModuleInstalled ? (
-              <div className="inputGroup">
-                <div>Session Module installed</div>
-                <button type="button" onClick={createSession}>
-                  Create a new Session
-                </button>
-              </div>
-            ) : (
-              <div className="inputGroup">
-                <button type="button" onClick={installSessionModule}>
-                  Install Session Module
-                </button>
-              </div>
-            )}
+            <div className="inputGroup">
+              {session && <div>Session Module installed</div>}
+              <button type="button" onClick={createSession}>
+                Create a new Session
+              </button>
+            </div>
           </Section>
 
           {session && (
