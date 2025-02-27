@@ -91,8 +91,9 @@ This section details the core technologies, smart contracts, and SDKs used in th
 
 ```
 MINATO_RPC=https://rpc.minato.soneium.org
-BUNDLER_URL=https://soneium-minato.dev.bundler.scs.startale.com?apikey=[API_KEY]
-PAYMASTER_SERVICE_URL=https://dev.paymaster.scs.startale.com/v1/paymaster?apikey=[API_KEY]
+BUNDLER_URL=https://soneium-minato.bundler.scs.startale.com?apikey=[API_KEY]
+PAYMASTER_SERVICE_URL=https://paymaster.scs.startale.com/v1/paymaster?apikey=[API_KEY]
+
 ```
 
 ### Custom Implementation Steps
