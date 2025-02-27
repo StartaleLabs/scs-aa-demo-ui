@@ -17,7 +17,7 @@ import {
 } from "@zerodev/sdk";
 import { KERNEL_V3_2 } from "@zerodev/sdk/constants";
 import { erc7579Actions } from "permissionless/actions/erc7579";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import {
   http,
   type Account,
@@ -63,6 +63,7 @@ import Dice from "react-dice-roll";
 import { Section } from "./Section";
 import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
 import { enablingSessionsAbi } from "./abi/SmartSessionAbi";
+import { SocialRecoveryAbi } from "./abi/SocialRecovery";
 
 const scsContext = { calculateGasLimits: false, policyId: "sudo" };
 
@@ -81,6 +82,48 @@ const paymasterClient = createPaymasterClient({
   transport: http(PAYMASTER_SERVICE_URL),
 });
 
+const createKernelClientInstance = (smartAccount: CreateKernelAccountReturnType) => {
+  return createKernelAccountClient({
+    account: smartAccount,
+    chain: soneiumMinato,
+    bundlerTransport: http(BUNDLER_URL),
+    client: publicClient,
+    paymaster: {
+      async getPaymasterData(pmDataParams: GetPaymasterDataParameters) {
+        console.log("Called getPaymasterData: ", pmDataParams);
+        const paymasterResponse = await paymasterClient.getPaymasterData(pmDataParams);
+        console.log("Paymaster Response: ", paymasterResponse);
+        return paymasterResponse;
+      },
+      async getPaymasterStubData(pmStubDataParams: GetPaymasterDataParameters) {
+        console.log("Called getPaymasterStubData: ", pmStubDataParams);
+        const paymasterStubResponse = await paymasterClient.getPaymasterStubData(pmStubDataParams);
+        console.log("Paymaster Stub Response: ", paymasterStubResponse);
+        return {
+          ...paymasterStubResponse,
+          paymasterAndData: undefined,
+          paymaster: PAYMASTER_CONTRACT_ADDRESS as Hex,
+          paymasterData: paymasterStubResponse.paymasterData || "0x",
+          paymasterVerificationGasLimit:
+            paymasterStubResponse.paymasterVerificationGasLimit || BigInt(200000),
+          paymasterPostOpGasLimit: paymasterStubResponse.paymasterPostOpGasLimit || BigInt(100000),
+        };
+      },
+    },
+    paymasterContext: scsContext,
+    userOperation: {
+      estimateFeesPerGas: async () => {
+        return {
+          maxFeePerGas: BigInt(10000000),
+          maxPriorityFeePerGas: BigInt(10000000),
+        };
+      },
+    },
+  }).extend(erc7579Actions());
+};
+
+type KernelClientInstanceType = ReturnType<typeof createKernelClientInstance>;
+
 export function SmartAccount({
   setLoadingText,
   addLine,
@@ -88,7 +131,7 @@ export function SmartAccount({
   const connectedAccount = useAccount();
 
   const [smartAccount, setSmartAccount] = useState<CreateKernelAccountReturnType>();
-  const [kernelClient, setKernelClient] = useState<any>();
+  const [kernelClient, setKernelClient] = useState<KernelClientInstanceType>();
   const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
   const [instanceIndex, setInstanceIndex] = useState(0);
   const [smartSessionsModule, setSmartSessionsModule] = useState<Module>();
@@ -232,6 +275,8 @@ export function SmartAccount({
     try {
       // Smart Sessions module
 
+      if (!kernelClient) throw new Error("Kernel client not initialized");
+
       const smartSessions = getSmartSessionsValidator({});
       console.log("Smart Sessions: ", smartSessions);
 
@@ -311,6 +356,9 @@ export function SmartAccount({
 
   const createSession = async () => {
     try {
+      if (!kernelClient) {
+        throw new Error("Kernel client not initialized");
+      }
       setLoadingText("Creating session");
       const sessionOwnerPk = generatePrivateKey();
       const sessionOwner = privateKeyToAccount(sessionOwnerPk);
@@ -393,6 +441,9 @@ export function SmartAccount({
 
   const rollDice = async (value: number) => {
     try {
+      if (!kernelClient) {
+        throw new Error("Kernel client not initialized");
+      }
       if (!session) {
         throw new Error("Session not created yet");
       }
@@ -540,7 +591,12 @@ export function SmartAccount({
       </Section>
       {smartAccount && (
         <>
-          <SocialRecoverySection />
+          <SocialRecoverySection
+            kernelClient={kernelClient as KernelClientInstanceType}
+            setLoadingText={setLoadingText}
+            addLine={addLine}
+            handleErrors={handleErrors}
+          />
 
           <Section title="Session Module">
             {isSessionModuleInstalled ? (
@@ -573,42 +629,88 @@ export function SmartAccount({
   );
 }
 
-function SocialRecoverySection({ kernelClient }: { kernelClient: any }) {
+function SocialRecoverySection({
+  kernelClient,
+  addLine,
+  setLoadingText,
+  handleErrors,
+}: {
+  kernelClient: KernelClientInstanceType;
+  addLine: (line: string) => void;
+  setLoadingText: (text: string) => void;
+  handleErrors: (error: Error, message: string) => void;
+}) {
   const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
-  const [socialRecoveryModule, setSocialRecoveryModule] = useState<Module>();
-  const [guardians, setGuardians] = useState<`0x${string}`[]>([]);
+  const [guardians, setGuardians] = useState<`0x${string}`[]>([
+    "0xa277F2011A116034a459D61bC1CAE0ddAc4f5D15",
+  ]);
+  const [guardian, setGuardian] = useState<`0x${string}` | undefined>();
+
+  useEffect(() => {
+    if (kernelClient) {
+      checkIsRecoveryModuleInstalled();
+    }
+  }, [kernelClient?.account?.address]);
 
   const checkIsRecoveryModuleInstalled = async () => {
     // Social recovery module
-    const socialRecovery = getSocialRecoveryValidator({
-      threshold: 2,
-      guardians: [guardian1, guardian2],
-    });
+    const socialRecoveryModuleCustom: Module = {
+      additionalContext: "0x",
+      address: ACCOUNT_RECOVERY_MODULE_ADDRESS,
+      type: "validator",
+      module: ACCOUNT_RECOVERY_MODULE_ADDRESS,
+      initData: "0x",
+      deInitData: "0x",
+    };
+    console.log("Social Recovery Module: ", socialRecoveryModuleCustom);
+    const recoveryModuleInstalled = await kernelClient.isModuleInstalled(
+      socialRecoveryModuleCustom,
+    );
 
-    socialRecovery.module = ACCOUNT_RECOVERY_MODULE_ADDRESS;
-    socialRecovery.address = ACCOUNT_RECOVERY_MODULE_ADDRESS;
-
-    setSocialRecoveryModule(socialRecovery);
-    const recoveryModuleInstalled = await kernelClient.isModuleInstalled(socialRecovery);
-    setIsRecoveryModuleInstalled(recoveryModuleInstalled);
-    console.log("Is Recovery Module Installed: ", recoveryModuleInstalled);
     if (recoveryModuleInstalled) {
+      await getGuardians();
       addLine("Recovery Module already installed.");
+    } else {
+      setGuardians([]);
     }
+
+    setIsRecoveryModuleInstalled(recoveryModuleInstalled);
   };
 
-  const installRecoveryModule = async () => {
+  const getGuardians = async () => {
+    const accountGuardians = (await publicClient.readContract({
+      address: ACCOUNT_RECOVERY_MODULE_ADDRESS,
+      abi: SocialRecoveryAbi,
+      functionName: "getGuardians",
+      args: [kernelClient.account.address],
+    })) as `0x${string}`[];
+    console.log("Account Guardians: ", accountGuardians);
+    setGuardians(accountGuardians);
+  };
+
+  const handleAddNewGuardian = async () => {
     try {
-      if (!smartAccount) {
-        throw new Error("Smart account not initialized");
-      }
       if (!kernelClient) {
         throw new Error("Kernel client not initialized");
       }
-      if (!socialRecoveryModule) {
-        throw new Error("Social recovery module not initialized");
+      if (!isRecoveryModuleInstalled) {
+        installRecoveryModule();
+      } else {
+        addNewGuardianToExisting();
       }
+    } catch (error) {
+      console.error("Error adding new guardian", error);
+      handleErrors(error as Error, "Error adding new guardian");
+    }
+  };
 
+  const addNewGuardianToExisting = async () => {};
+  const installRecoveryModule = async () => {
+    try {
+      const socialRecoveryModule = getSocialRecoveryValidator({
+        guardians,
+        threshold: guardians.length,
+      });
       setLoadingText("Installing recovery module");
       const initDataArg = encodePacked(
         ["address", "bytes"],
@@ -616,13 +718,14 @@ function SocialRecoverySection({ kernelClient }: { kernelClient: any }) {
           zeroAddress,
           encodeAbiParameters(
             [{ type: "bytes" }, { type: "bytes" }],
-            [socialRecoveryModule.initData || "0x", "0x"],
+            [socialRecoveryModule?.initData || "0x", "0x"],
           ),
         ],
       );
+
       const calls = [
         {
-          to: smartAccount.address,
+          to: kernelClient.account.address,
           value: BigInt(0),
           data: encodeFunctionData({
             abi: [
@@ -670,38 +773,51 @@ function SocialRecoverySection({ kernelClient }: { kernelClient: any }) {
     }
   };
 
+  const handleRemoveGuardian = (guardian: `0x${string}`) => {};
+
   return (
     <Section title="Social Recovery Module (optional)">
+      {guardians.length > 0 && <div>Guardians:</div>}
       <div className="inputGroup">
-        <div>
-          <label htmlFor="guardian1">Guardian 1</label>
+        {guardians.map((guardian, index) => (
+          <div className="guardianWrapper" key={index}>
+            <div>{guardian}</div>
+            <button
+              type="button"
+              onClick={() => {
+                handleRemoveGuardian(guardian);
+              }}
+            >
+              X
+            </button>
+          </div>
+        ))}
+        <div className="inputGroup">
+          <label htmlFor="guardian">Add a guardian</label>
           <input
-            name="guardian1"
-            id="guardian1"
+            id="guardian"
             type="text"
-            placeholder="Recovery address 1"
-            value={guardian1}
-            onChange={(e) => setGuardian1(e.target.value as `0x${string}`)}
+            value={guardian}
+            onChange={(e) => setGuardian(e.target.value as `0x${string}`)}
           />
         </div>
-        <div>
-          <label htmlFor="guardian2">Guardian 2</label>
-          <input
-            name="guardian2"
-            id="guardian2"
-            type="text"
-            placeholder="Recovery address 2"
-            value={guardian2}
-            onChange={(e) => setGuardian2(e.target.value as `0x${string}`)}
-          />
-        </div>
-        <button type="button" onClick={installRecoveryModule}>
-          Install Recovery Module
+        <button
+          type="button"
+          onClick={() => {
+            if (guardian) {
+              setGuardians([...guardians, guardian]);
+              setGuardian(undefined);
+            }
+          }}
+        >
+          Add Guardian
         </button>
+
       </div>
     </Section>
   );
 }
+
 type dieResult = 1 | 2 | 3 | 4 | 5 | 6;
 
 function getRandomDiceValue(): dieResult {
