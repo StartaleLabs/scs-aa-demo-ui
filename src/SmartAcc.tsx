@@ -17,7 +17,7 @@ import {
 } from "@zerodev/sdk";
 import { KERNEL_V3_2 } from "@zerodev/sdk/constants";
 import { erc7579Actions } from "permissionless/actions/erc7579";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   http,
   type Account,
@@ -59,6 +59,7 @@ const {
   DICE_ROLL_LEDGER_ADDRESS,
 } = AA_CONFIG;
 import { getAccountNonce } from "@zerodev/sdk/actions";
+import { toKernelSmartAccount } from "permissionless/accounts";
 import Dice from "react-dice-roll";
 import { Section } from "./Section";
 import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
@@ -133,7 +134,7 @@ export function SmartAccount({
   const [smartAccount, setSmartAccount] = useState<CreateKernelAccountReturnType>();
   const [kernelClient, setKernelClient] = useState<KernelClientInstanceType>();
   const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
-  const [instanceIndex, setInstanceIndex] = useState(22);
+  const [instanceIndex, setInstanceIndex] = useState(29);
   const [smartSessionsModule, setSmartSessionsModule] = useState<Module>();
   const [sessionOwner, setSessionOwner] = useState<Account>();
   const [session, setSession] = useState<Session>();
@@ -185,6 +186,7 @@ export function SmartAccount({
       if (!connectedAccount?.address) {
         throw new Error("No connected account");
       }
+
       // Get an ECDSA validator instance based on the connected signer
       const ecdsaValidator = await signerToEcdsaValidator(publicClient, {
         signer: window.ethereum,
@@ -192,6 +194,9 @@ export function SmartAccount({
         kernelVersion: KERNEL_V3_2,
         validatorAddress: ECDSA_VALIDATOR_ADDRESS as Hex,
       });
+
+
+const permissionlessAccount = toKernelSmartAccount({});
 
       // Create a Kernel account with our ECDSA plugin
       const account = await createKernelAccount(publicClient, {
@@ -611,31 +616,6 @@ export function SmartAccount({
 
   return (
     <div className="input">
-      {/* <Section title="Smart Account instance">
-        <div className="inputGroup">
-          {connectedAccount?.address ? (
-            <>
-              <button type="button" onClick={handleInstantiateSmartAccount}>
-                Get a new smart account instance
-              </button>
-              <div className="indexInputWrapper">
-                <label htmlFor="instanceIndex">Custom nonce</label>
-                <input
-                  className="indexInput"
-                  name="instanceIndex"
-                  id="instanceIndex"
-                  type="number"
-                  value={instanceIndex}
-                  onChange={(e) => setInstanceIndex(Number(e.target.value))}
-                />
-              </div>
-            </>
-          ) : (
-            <div>Please connect your wallet</div>
-          )}
-        </div>
-        {smartAccount && <div>Smart account address: {smartAccount.address}</div>}
-      </Section> */}
       {smartAccount && (
         <>
           <SocialRecoverySection
@@ -645,11 +625,11 @@ export function SmartAccount({
             handleErrors={handleErrors}
           />
 
-          <Section title="Session Module">
+          <Section title="Start a game of dice">
             <div className="inputGroup">
               {session && <div>Session Module installed</div>}
               <button type="button" onClick={createSession}>
-                Create a new Session
+                New game
               </button>
             </div>
           </Section>
@@ -680,10 +660,13 @@ function SocialRecoverySection({
   handleErrors: (error: Error, message: string) => void;
 }) {
   const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
-  const [guardians, setGuardians] = useState<`0x${string}`[]>([
-    "0xa277F2011A116034a459D61bC1CAE0ddAc4f5D15",
-  ]);
+  const [guardians, setGuardians] = useState<`0x${string}`[]>([]);
   const [guardian, setGuardian] = useState<`0x${string}` | "">("");
+
+
+
+    // 0xa277F2011A116034a459D61bC1CAE0ddAc4f5D15,
+  // 0x12BbfcD97B792E614eF346061C05f4a98277f9Ac
 
   useEffect(() => {
     if (kernelClient) {
@@ -766,13 +749,19 @@ function SocialRecoverySection({
 
     console.log("Guardian added successfully");
     addLine("Guardian added successfully");
+    setGuardian("");
     await getGuardians();
   };
+
   const installRecoveryModule = async () => {
+    if (!guardian || !isValidEthereumAddress(guardian)) {
+      console.error("Guardian address is required");
+      return;
+    }
     try {
       const socialRecoveryModule = getSocialRecoveryValidator({
-        guardians,
-        threshold: guardians.length,
+        guardians: [guardian as `0x${string}`],
+        threshold: 1,
       });
       setLoadingText("Installing recovery module");
       const initDataArg = encodePacked(
@@ -829,6 +818,7 @@ function SocialRecoverySection({
 
       addLine("Recovery Module installed successfully");
       setIsRecoveryModuleInstalled(true);
+      await getGuardians();
       setLoadingText("");
     } catch (error) {
       console.error("Error installing recovery module", error);
@@ -871,7 +861,7 @@ function SocialRecoverySection({
   };
 
   return (
-    <Section title="Social Recovery Module (optional)">
+    <Section title="Add guardians for social recovery">
       {guardians.length > 0 && <div>Guardians:</div>}
       <div className="inputGroup">
         {guardians.map((guardian, index) => (
@@ -888,13 +878,15 @@ function SocialRecoverySection({
           </div>
         ))}
         <div className="inputGroup">
-          <label htmlFor="guardian">Add a guardian</label>
-          <input
-            id="guardian"
-            type="text"
-            value={guardian}
-            onChange={(e) => setGuardian(e.target.value as `0x${string}`)}
-          />
+          <div className="addressInput">
+            <label htmlFor="guardian">New address:</label>
+            <input
+              name="guardian"
+              type="text"
+              value={guardian}
+              onChange={(e) => setGuardian(e.target.value as `0x${string}`)}
+            />
+          </div>
         </div>
         <button
           type="button"
@@ -937,3 +929,5 @@ export const encodeValidatorNonceKey = ({
     ),
   );
 };
+
+const isValidEthereumAddress = (address: string): boolean => /^0x[a-fA-F0-9]{40}$/.test(address);

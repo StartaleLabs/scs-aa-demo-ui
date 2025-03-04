@@ -101,6 +101,21 @@
 
 }
 
+.addressInput {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 100%;
+  input {
+    flex: 1;
+    padding: 0.5rem;
+    background-color: #102a43; /* Deep Blue Gray */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.87);
+  }
+}
+
 .diceContainer {
   display: flex;
   width: 100%;
