@@ -1,24 +1,23 @@
 import {
+  type CreateSessionDataParams,
   type NexusAccount,
   type NexusClient,
-  type Module as NexusModule,
+  type SessionData,
   createSmartAccountClient,
+  smartSessionCreateActions,
   toNexusAccount,
+  toSmartSessionsValidator,
 } from "@biconomy/abstractjs";
 import {
   type Module,
-  getSocialRecoveryGuardians,
+  SmartSessionMode,
+  getSmartSessionsValidator,
   getSocialRecoveryValidator,
 } from "@rhinestone/module-sdk";
 import { useEffect, useState } from "react";
-import {
-  createPublicClient,
-  encodeAbiParameters,
-  encodeFunctionData,
-  encodePacked,
-  zeroAddress,
-} from "viem";
+import { createPublicClient, encodeFunctionData, stringify, toFunctionSelector } from "viem";
 import { type GetPaymasterDataParameters, createPaymasterClient } from "viem/account-abstraction";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { soneiumMinato } from "viem/chains";
 import { http, useAccount } from "wagmi";
 import { Section } from "./Section";
@@ -33,6 +32,7 @@ const {
   BUNDLER_URL,
   PAYMASTER_SERVICE_URL,
   ACCOUNT_RECOVERY_MODULE_ADDRESS,
+  DICE_ROLL_LEDGER_ADDRESS,
 } = AA_CONFIG;
 
 const scsContext = { calculateGasLimits: true, policyId: "sudo" };
@@ -73,7 +73,7 @@ export function SmartAccount({
 
   useEffect(() => {
     if (nexusClient) {
-      addLine("Kernel client instantiated");
+      addLine("Nexus client instantiated");
     }
   }, [nexusClient]);
   const handleErrors = (error: Error, text?: string) => {
@@ -142,6 +142,8 @@ export function SmartAccount({
     }
   };
 
+
+
   return (
     <div className="input">
       {nexusAccount && nexusClient && (
@@ -152,9 +154,147 @@ export function SmartAccount({
             setLoadingText={setLoadingText}
             handleErrors={handleErrors}
           />
+          <SmartSessionSection
+            nexusClient={nexusClient}
+            addLine={addLine}
+            setLoadingText={setLoadingText}
+            handleErrors={handleErrors}
+          />
         </div>
       )}
     </div>
+  );
+}
+
+function SmartSessionSection({
+  nexusClient,
+  addLine,
+  setLoadingText,
+  handleErrors,
+}: {
+  nexusClient: NexusClient;
+  addLine: (line: string) => void;
+  setLoadingText: (text: string) => void;
+  handleErrors: (error: Error, message: string) => void;
+}) {
+  const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
+
+  useEffect(() => {
+    if (nexusClient) {
+      checkIsSessionModuleInstalled();
+    }
+  }, [nexusClient?.account?.address]);
+
+  const checkIsSessionModuleInstalled = async () => {
+    const sessionsModule = getSmartSessionsValidator({});
+    const isSmartSessionsModuleInstalled = await nexusClient.isModuleInstalled({
+      module: sessionsModule,
+    });
+    setIsSessionModuleInstalled(isSmartSessionsModuleInstalled);
+  };
+
+  const installSmartSessionModule = async () => {
+    try {
+      if (!nexusClient) {
+        throw new Error("Nexus client not initialized");
+      }
+      const sessionsModule = getSmartSessionsValidator({});
+
+      if (!isSessionModuleInstalled) {
+        const opHash = await nexusClient.installModule({
+          module: sessionsModule,
+        });
+
+        console.log("Operation hash: ", opHash);
+
+        const result = await nexusClient.waitForUserOperationReceipt({
+          hash: opHash,
+        });
+        console.log("Operation result: ", result.receipt.transactionHash);
+        addLine("Smart Sessions module installed successfully");
+        setIsSessionModuleInstalled(true);
+      }
+    } catch (error) {
+      console.error("Error creating session", error);
+      handleErrors(error as Error, "Error creating session");
+    }
+  };
+
+  const createSession = async () => {
+    try {
+      if (!nexusClient) {
+        throw new Error("Nexus client not initialized");
+      }
+
+      if (!isSessionModuleInstalled) {
+        await installSmartSessionModule();
+      }
+      const sessionOwner = privateKeyToAccount(generatePrivateKey());
+
+      const sessionsModule = toSmartSessionsValidator({
+        account: nexusClient.account,
+        signer: sessionOwner,
+      });
+
+      const nexusSessionClient = nexusClient.extend(smartSessionCreateActions(sessionsModule));
+
+      const selector = toFunctionSelector("writeDiceRoll(uint256)");
+      const sessionRequestedInfo: CreateSessionDataParams[] = [
+        {
+          sessionPublicKey: sessionOwner.address, // session key signer
+          actionPoliciesInfo: [
+            {
+              contractAddress: DICE_ROLL_LEDGER_ADDRESS,
+              functionSelector: selector,
+              sudo: true,
+            },
+          ],
+        },
+      ];
+
+      const createSessionsResponse = await nexusSessionClient.grantPermission({
+        sessionRequestedInfo,
+      });
+
+      const sessionData: SessionData = {
+        granter: nexusClient.account.address,
+        description: `Session to increment a counter for ${DICE_ROLL_LEDGER_ADDRESS}`,
+        sessionPublicKey: sessionOwner.address,
+        moduleData: {
+          permissionIds: createSessionsResponse.permissionIds,
+          action: createSessionsResponse.action,
+          mode: SmartSessionMode.USE,
+          sessions: createSessionsResponse.sessions,
+        },
+      };
+
+      const cachedSessionData = stringify(sessionData);
+
+      localStorage.setItem("smartSessionData", cachedSessionData);
+
+      const result = await nexusClient.waitForUserOperationReceipt({
+        hash: createSessionsResponse.userOpHash,
+      });
+      console.log("Operation result: ", result.receipt.transactionHash);
+      console.log("Session created successfully", createSessionsResponse);
+      addLine("Session created successfully");
+    } catch (error) {
+      console.error("Error creating session", error);
+      handleErrors(error as Error, "Error creating session");
+    }
+  };
+
+  return (
+    <Section title="Create session">
+      <button
+        type="button"
+        onClick={() => {
+          createSession();
+        }}
+      >
+        Create Session
+      </button>
+    </Section>
   );
 }
 
@@ -172,9 +312,6 @@ function SocialRecoverySection({
   const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
   const [guardians, setGuardians] = useState<`0x${string}`[]>([]);
   const [guardian, setGuardian] = useState<`0x${string}` | "">("");
-
-  const addr1 = "0xa277F2011A116034a459D61bC1CAE0ddAc4f5D15";
-  const addr2 = "0x12BbfcD97B792E614eF346061C05f4a98277f9Ac";
 
   useEffect(() => {
     if (nexusClient) {
