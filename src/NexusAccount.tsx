@@ -13,9 +13,17 @@ import {
   SmartSessionMode,
   getSmartSessionsValidator,
   getSocialRecoveryValidator,
+  isSessionEnabled,
 } from "@rhinestone/module-sdk";
-import { useEffect, useState } from "react";
-import { createPublicClient, encodeFunctionData, stringify, toFunctionSelector } from "viem";
+import { use, useEffect, useState } from "react";
+import Dice from "react-dice-roll";
+import {
+  type PublicClient,
+  createPublicClient,
+  encodeFunctionData,
+  stringify,
+  toFunctionSelector,
+} from "viem";
 import { type GetPaymasterDataParameters, createPaymasterClient } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { soneiumMinato } from "viem/chains";
@@ -142,8 +150,6 @@ export function SmartAccount({
     }
   };
 
-
-
   return (
     <div className="input">
       {nexusAccount && nexusClient && (
@@ -178,12 +184,31 @@ function SmartSessionSection({
   handleErrors: (error: Error, message: string) => void;
 }) {
   const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
+  const [activeSession, setActiveSession] = useState<SessionData | null>(null);
 
   useEffect(() => {
     if (nexusClient) {
       checkIsSessionModuleInstalled();
     }
   }, [nexusClient?.account?.address]);
+
+  useEffect(() => {
+    if (!isSessionModuleInstalled) {
+      return;
+    }
+    const cachedSessionData = localStorage.getItem("smartSessionData");
+    if (cachedSessionData) {
+      setActiveSession(JSON.parse(cachedSessionData));
+    }
+  }, [isSessionModuleInstalled]);
+
+  useEffect(() => {
+    if (activeSession) {
+      addLine("Active session found");
+      addLine(`Session owner: ${activeSession.granter}`);
+      addLine(`Session public key: ${activeSession.sessionPublicKey}`);
+    }
+  }, [activeSession]);
 
   const checkIsSessionModuleInstalled = async () => {
     const sessionsModule = getSmartSessionsValidator({});
@@ -268,13 +293,13 @@ function SmartSessionSection({
         },
       };
 
-      const cachedSessionData = stringify(sessionData);
-
-      localStorage.setItem("smartSessionData", cachedSessionData);
-
       const result = await nexusClient.waitForUserOperationReceipt({
         hash: createSessionsResponse.userOpHash,
       });
+
+      setActiveSession(sessionData);
+      const cachedSessionData = stringify(sessionData);
+      localStorage.setItem("smartSessionData", cachedSessionData);
       console.log("Operation result: ", result.receipt.transactionHash);
       console.log("Session created successfully", createSessionsResponse);
       addLine("Session created successfully");
@@ -284,16 +309,92 @@ function SmartSessionSection({
     }
   };
 
+  const rollDice = async (value: number) => {
+    try {
+      console.log("Rolling dice with value: ", value);
+      if (!activeSession) {
+        throw new Error("No active session found");
+      }
+      const isEnabled = await isSessionEnabled({
+        client: nexusClient.account.client as PublicClient,
+        account: {
+          type: "nexus",
+          address: nexusClient.account.address,
+          deployedOnChains: [chain.id],
+        },
+        permissionId: activeSession.moduleData.permissionIds[0],
+      });
+      console.log("is session Enabled", isEnabled);
+
+      const smartSessionNexusClient = createSmartAccountClient({
+        account: await toNexusAccount({
+          signer: ,
+          accountAddress: sessionData.granter,
+          chain: chain,
+          transport: http(),
+          // attesters: [mockAttester],
+          // factoryAddress: k1ValidatorFactory,
+          // validatorAddress: k1Validator,
+          // index: BigInt(1000025)
+        }),
+        transport: http(BUNDLER_URL),
+        client: publicClient,
+        paymaster: {
+          async getPaymasterData(pmDataParams: GetPaymasterDataParameters) {
+            pmDataParams.paymasterPostOpGasLimit = BigInt(100000);
+            pmDataParams.paymasterVerificationGasLimit = BigInt(200000);
+            pmDataParams.verificationGasLimit = BigInt(500000);
+            // console.log("Called getPaymasterData: ", pmDataParams);
+            const paymasterResponse = await paymasterClient.getPaymasterData(pmDataParams);
+            // console.log("Paymaster Response: ", paymasterResponse);
+            return paymasterResponse;
+          },
+          async getPaymasterStubData(pmStubDataParams: GetPaymasterDataParameters) {
+            // console.log("Called getPaymasterStubData: ", pmStubDataParams);
+            const paymasterStubResponse =
+              await paymasterClient.getPaymasterStubData(pmStubDataParams);
+            // console.log("Paymaster Stub Response: ", paymasterStubResponse);
+            return paymasterStubResponse;
+          },
+        },
+        paymasterContext: scsContext,
+        // Note: Otherise makes a call to 'biconomy_getGasFeeValues' endpoint
+        userOperation: {
+          estimateFeesPerGas: async ({ bundlerClient }) => {
+            return {
+              maxFeePerGas: BigInt(10000000),
+              maxPriorityFeePerGas: BigInt(10000000),
+            };
+          },
+        },
+        mock: true,
+      });
+    } catch (error) {
+      console.error("Error rolling dice", error);
+      handleErrors(error as Error, "Error rolling dice");
+    }
+  };
+
   return (
-    <Section title="Create session">
-      <button
-        type="button"
-        onClick={() => {
-          createSession();
-        }}
-      >
-        Create Session
-      </button>
+    <Section title="Play the dice game">
+      {activeSession ? (
+        <>
+          <div className="instructionText">Roll a die without signing the transaction!</div>
+          <div className="diceContainer">
+            <Dice
+              cheatValue={getRandomDiceValue()}
+              size={100}
+              onRoll={() => console.log("Rolling")}
+            />
+          </div>
+        </>
+      ) : (
+        <div className="inputGroup">
+          <button type="button" onClick={createSession}>
+            New game
+          </button>
+        </div>
+      )}
     </Section>
   );
 }
@@ -508,3 +609,9 @@ function SocialRecoverySection({
 }
 
 const isValidEthereumAddress = (address: string): boolean => /^0x[a-fA-F0-9]{40}$/.test(address);
+
+type dieResult = 1 | 2 | 3 | 4 | 5 | 6;
+
+function getRandomDiceValue(): dieResult {
+  return (Math.floor(Math.random() * 6) + 1) as dieResult;
+}
