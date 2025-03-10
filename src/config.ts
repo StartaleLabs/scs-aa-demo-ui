@@ -13,8 +13,8 @@ export const AA_CONFIG = {
   MINATO_RPC: "https://rpc.minato.soneium.org",
   BUNDLER_URL: "https://soneium-minato.dev.bundler.scs.startale.com?apikey=scsadmin",
   PAYMASTER_SERVICE_URL: import.meta.env.DEV
-    ? "/api/paymaster/dummy_key"
-    : "https://dev.paymaster.scs.startale.com/v1/paymaster?apikey=scsadmin-paymaster",
+    ? "/api/dummy_key"
+    : "https://dev.paymaster.scs.startale.com/v1/?apikey=scsadmin-paymaster",
   ENTRY_POINT_ADDRESS: "0x0000000071727De22E5E9d8BAf0edAc6f37da032" as Address,
   PAYMASTER_CONTRACT_ADDRESS: "0xb28E459aB4a61e78b27768A37C92d902CA89F181" as Address,
   KERNEL_FACTORY_ADDRESS: "0x8Adb765F983e5a44cB5bF76fEDdf40691c623e39" as Address,
