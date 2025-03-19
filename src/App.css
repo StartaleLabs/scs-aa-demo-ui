@@ -61,6 +61,14 @@
   text-align: left;
 }
 
+.info {
+  color: #f9f9f9;
+}
+
+.important {
+  color: red;
+  font-weight: bold;
+}
 .sectionWrapper {
   display: flex;
   flex-direction: column;

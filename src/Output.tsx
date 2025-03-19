@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 
 export type OutputHandle = {
-  addLine: (newLine: string) => void;
+  addLine: (newLine: string, level?: string) => void;
 };
 
 type OutputProps = {
@@ -9,13 +9,13 @@ type OutputProps = {
 };
 
 export const Output = forwardRef<OutputHandle, OutputProps>(({ loadingText }, ref) => {
-  const [lines, setLines] = useState<string[]>([]);
+  const [lines, setLines] = useState<[string,string][]>([]);
   const [loadingDots, setLoadingDots] = useState("");
 
   // Expose the addLine function to the parent component
   useImperativeHandle(ref, () => ({
-    addLine: (newLine: string) => {
-      setLines((prevLines) => [...prevLines, newLine]); // Append new line
+    addLine: (newLine: string, level?: string) => {
+      setLines((prevLines) => [...prevLines, [newLine, level || "important"]]); // Append new line
     },
   }));
 
@@ -39,8 +39,8 @@ export const Output = forwardRef<OutputHandle, OutputProps>(({ loadingText }, re
   return (
     <div className="output">
       {lines.map((line, index) => (
-        <div key={index} className="line">
-          {line}
+        <div key={index} className={`line ${line[1]}`}>
+          {line[0]}
         </div>
       ))}
       {loadingText && (
