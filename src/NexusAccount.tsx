@@ -5,6 +5,7 @@ import {
   type SessionData,
   createSmartAccountClient,
   smartSessionCreateActions,
+  smartSessionUseActions,
   toNexusAccount,
   toSmartSessionsValidator,
 } from "@biconomy/abstractjs";
@@ -24,13 +25,14 @@ import {
   stringify,
   toFunctionSelector,
 } from "viem";
-import { type GetPaymasterDataParameters, createPaymasterClient } from "viem/account-abstraction";
+import { type GetPaymasterDataParameters, createBundlerClient, createPaymasterClient } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { soneiumMinato } from "viem/chains";
 import { http, useAccount } from "wagmi";
 import { Section } from "./Section";
 import { SocialRecoveryAbi } from "./abi/SocialRecovery";
 import { AA_CONFIG } from "./config";
+import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
 
 const {
   MOCK_ATTESTER_ADDRESS,
@@ -50,6 +52,11 @@ const chain = soneiumMinato;
 const publicClient = createPublicClient({
   transport: http(MINATO_RPC),
   chain,
+});
+
+const bundlerClient = createBundlerClient({
+  client: publicClient,
+  transport: http(BUNDLER_URL),
 });
 
 const paymasterClient = createPaymasterClient({
@@ -254,8 +261,13 @@ function SmartSessionSection({
       if (!isSessionModuleInstalled) {
         await installSmartSessionModule();
       }
-      const sessionOwner = privateKeyToAccount(generatePrivateKey());
 
+      let ownerKey = localStorage.getItem("sessionOwnerKey");
+      if (!ownerKey) {
+        ownerKey = generatePrivateKey();
+        localStorage.setItem("sessionOwnerKey", ownerKey);
+      }
+      const sessionOwner = privateKeyToAccount(ownerKey as `0x${string}`);
       const sessionsModule = toSmartSessionsValidator({
         account: nexusClient.account,
         signer: sessionOwner,
@@ -326,10 +338,12 @@ function SmartSessionSection({
       });
       console.log("is session Enabled", isEnabled);
 
+      const ownerKey = localStorage.getItem("sessionOwnerKey") as `0x${string}`;
+      const sessionOwner = privateKeyToAccount(ownerKey);
       const smartSessionNexusClient = createSmartAccountClient({
         account: await toNexusAccount({
-          signer: ,
-          accountAddress: sessionData.granter,
+          signer: sessionOwner,
+          accountAddress: activeSession.granter,
           chain: chain,
           transport: http(),
           // attesters: [mockAttester],
@@ -369,6 +383,51 @@ function SmartSessionSection({
         },
         mock: true,
       });
+
+      const usePermissionsModule = toSmartSessionsValidator({
+        account: smartSessionNexusClient.account,
+        signer: sessionOwner,
+        moduleData: activeSession.moduleData
+      });
+
+      const useSmartSessionNexusClient = smartSessionNexusClient.extend(
+        smartSessionUseActions(usePermissionsModule)
+      )
+
+    const callData = encodeFunctionData({
+        abi: DiceRollLedgerAbi,
+        functionName: "writeDiceRoll",
+        args: [BigInt(value)],
+      });
+      addLine(`Your roll: ${value}`);
+      setLoadingText("Writing result to chain");
+      const userOpHash = await useSmartSessionNexusClient.usePermission({
+        calls: [
+          {
+            to: DICE_ROLL_LEDGER_ADDRESS,
+            data: callData
+          }
+        ]
+      })
+
+      const resultOfUsedSession = await bundlerClient.waitForUserOperationReceipt({
+        hash: userOpHash,
+      });
+      console.log("Operation result: ", resultOfUsedSession.receipt.transactionHash);
+      const ledgerStateAfter = (await publicClient.readContract({
+              address: DICE_ROLL_LEDGER_ADDRESS,
+              abi: DiceRollLedgerAbi,
+              functionName: "getAllRolls",
+              args: [nexusClient.account.address],
+            })) as number[];
+
+            setLoadingText("");
+            addLine("Result written to chain successfully");
+            addLine(`Your results so far: ${ledgerStateAfter}`);
+            addLine(
+              `Your score total: ${ledgerStateAfter.reduce((a, b) => BigInt(a) + BigInt(b), BigInt(0))}`,
+            );
+
     } catch (error) {
       console.error("Error rolling dice", error);
       handleErrors(error as Error, "Error rolling dice");
@@ -384,7 +443,7 @@ function SmartSessionSection({
             <Dice
               cheatValue={getRandomDiceValue()}
               size={100}
-              onRoll={() => console.log("Rolling")}
+              onRoll={rollDice}
             />
           </div>
         </>
