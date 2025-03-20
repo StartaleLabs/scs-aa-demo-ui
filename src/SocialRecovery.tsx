@@ -92,6 +92,7 @@ export function SocialRecoverySection({
 
   const addNewGuardianToExisting = async () => {
     console.log("adding guardian to existing");
+    setLoadingText("Adding guardian");
     const calls = [
       {
         to: ACCOUNT_RECOVERY_MODULE_ADDRESS,
@@ -113,6 +114,7 @@ export function SocialRecoverySection({
 
     console.log("Guardian added successfully");
     addLine("Guardian added successfully");
+    setLoadingText("");
     setGuardian("");
     await getGuardians();
   };
@@ -128,7 +130,7 @@ export function SocialRecoverySection({
         threshold: 1,
       });
 
-      setLoadingText("Installing recovery module");
+      setLoadingText("Installing recovery module and adding guardian");
 
       const installModuleUserOpHash = await nexusClient.installModule({
         module: socialRecoveryModule,
@@ -139,6 +141,7 @@ export function SocialRecoverySection({
       });
 
       addLine("Recovery Module installed successfully");
+      addLine("Guardian added successfully");
       setIsRecoveryModuleInstalled(true);
       await getGuardians();
       setLoadingText("");
@@ -158,6 +161,7 @@ export function SocialRecoverySection({
 
     const prevGuardian = index === 0 ? SENTINEL_ADDRESS : guardians[index - 1];
 
+    setLoadingText("Removing guardian");
     const calls = [
       {
         to: ACCOUNT_RECOVERY_MODULE_ADDRESS,
@@ -179,6 +183,7 @@ export function SocialRecoverySection({
 
     console.log("Guardian removed successfully");
     addLine("Guardian removed successfully");
+    setLoadingText("");
     await getGuardians();
   };
 

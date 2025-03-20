@@ -97,6 +97,11 @@ export function SmartSessionSection({
     const isSmartSessionsModuleInstalled = await nexusClient.isModuleInstalled({
       module: sessionsModule,
     });
+    if (isSmartSessionsModuleInstalled) {
+      addLine("Smart Sessions module already installed");
+    } else {
+      addLine("Smart Sessions module not installed");
+    }
     setIsSessionModuleInstalled(isSmartSessionsModuleInstalled);
   };
 
@@ -108,6 +113,7 @@ export function SmartSessionSection({
       const sessionsModule = getSmartSessionsValidator({});
 
       if (!isSessionModuleInstalled) {
+        setLoadingText("Installing Smart Sessions module");
         const opHash = await nexusClient.installModule({
           module: sessionsModule,
         });
@@ -120,6 +126,7 @@ export function SmartSessionSection({
         console.log("Operation result: ", result.receipt.transactionHash);
         addLine("Smart Sessions module installed successfully");
         setIsSessionModuleInstalled(true);
+        setLoadingText("");
       }
     } catch (error) {
       console.error("Error creating session", error);
@@ -137,6 +144,7 @@ export function SmartSessionSection({
         await installSmartSessionModule();
       }
 
+      setLoadingText("Creating session");
       let ownerKey = localStorage.getItem("sessionOwnerKey");
       if (!ownerKey) {
         ownerKey = generatePrivateKey();
@@ -190,6 +198,7 @@ export function SmartSessionSection({
       console.log("Operation result: ", result.receipt.transactionHash);
       console.log("Session created successfully", createSessionsResponse);
       addLine("Session created successfully");
+      setLoadingText("");
     } catch (error) {
       console.error("Error creating session", error);
       handleErrors(error as Error, "Error creating session");
@@ -229,16 +238,12 @@ export function SmartSessionSection({
             pmDataParams.paymasterPostOpGasLimit = BigInt(100000);
             pmDataParams.paymasterVerificationGasLimit = BigInt(200000);
             pmDataParams.verificationGasLimit = BigInt(500000);
-            // console.log("Called getPaymasterData: ", pmDataParams);
             const paymasterResponse = await paymasterClient.getPaymasterData(pmDataParams);
-            // console.log("Paymaster Response: ", paymasterResponse);
             return paymasterResponse;
           },
           async getPaymasterStubData(pmStubDataParams: GetPaymasterDataParameters) {
-            // console.log("Called getPaymasterStubData: ", pmStubDataParams);
             const paymasterStubResponse =
               await paymasterClient.getPaymasterStubData(pmStubDataParams);
-            // console.log("Paymaster Stub Response: ", paymasterStubResponse);
             return paymasterStubResponse;
           },
         },
