@@ -1,7 +1,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 
 export type OutputHandle = {
-  addLine: (newLine: string) => void;
+  addLine: (newLine: string, level?: string) => void;
+  clearLines: () => void;
 };
 
 type OutputProps = {
@@ -9,18 +10,19 @@ type OutputProps = {
 };
 
 export const Output = forwardRef<OutputHandle, OutputProps>(({ loadingText }, ref) => {
-  const [lines, setLines] = useState<string[]>([]);
+  const [lines, setLines] = useState<[string,string][]>([]);
   const [loadingDots, setLoadingDots] = useState("");
 
   // Expose the addLine function to the parent component
   useImperativeHandle(ref, () => ({
-    addLine: (newLine: string) => {
-      setLines((prevLines) => [...prevLines, newLine]); // Append new line
+    addLine: (newLine: string, level?: string) => {
+      setLines((prevLines) => [...prevLines, [newLine, level || "info"]]);
+    },
+    clearLines: () => {
+      setLines([]);
     },
   }));
 
-  // Handle blinking dots animation when isLoading is true
-  // Handle the blinking dots animation based on loadingText presence
   useEffect(() => {
     if (!loadingText) {
       setLoadingDots("");
@@ -33,14 +35,14 @@ export const Output = forwardRef<OutputHandle, OutputProps>(({ loadingText }, re
       count++;
     }, 500);
 
-    return () => clearInterval(interval); // Clear interval when loading stops
+    return () => clearInterval(interval);
   }, [loadingText]);
 
   return (
     <div className="output">
       {lines.map((line, index) => (
-        <div key={index} className="line">
-          {line}
+        <div key={`line-${index}`} className={`line ${line[1]}`}>
+          {line[0]}
         </div>
       ))}
       {loadingText && (

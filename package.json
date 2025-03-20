@@ -11,11 +11,10 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@biconomy/abstractjs": "^0.1.0",
     "@rainbow-me/rainbowkit": "^2.2.3",
-    "@rhinestone/module-sdk": "^0.2.5",
+    "@rhinestone/module-sdk": "0.2.3",
     "@tanstack/react-query": "^5.66.4",
-    "@zerodev/ecdsa-validator": "^5.4.4",
-    "@zerodev/sdk": "^5.4.21",
     "gh-pages": "^6.3.0",
     "permissionless": "^0.2.34",
     "react": "^19.0.0",
@@ -25,11 +24,15 @@
     "wagmi": "^2.14.11"
   },
   "devDependencies": {
+    "@types/node": "^22.13.8",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
-    "globals": "^15.14.0",
     "typescript": "~5.7.2",
     "vite": "^6.1.0"
+  },
+  "overrides": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }

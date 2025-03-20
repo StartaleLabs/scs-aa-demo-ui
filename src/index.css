@@ -5,7 +5,7 @@
 
   color-scheme: dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  background-color: #0a192f; /* Midnight Blue */
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -28,6 +28,7 @@ body {
   place-items: top;
   min-width: 320px;
   min-height: 100vh;
+  background-color: #0a192f; /* Midnight Blue */
 }
 
 h1 {
@@ -42,12 +43,14 @@ button {
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: #112D4E; /* Navy Blue */
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: border-color 0.25s, background-color 0.25s;
+  color: rgba(255, 255, 255, 0.87);
 }
 button:hover {
-  border-color: #646cff;
+  border-color: #3f72af; /* Electric Blue */
+  background-color: #102a43; /* Slightly darker blue */
 }
 button:focus,
 button:focus-visible {

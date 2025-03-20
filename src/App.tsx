@@ -3,8 +3,9 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import startaleLogo from "../public/startale_logo.webp";
+import { SmartAccount } from "./NexusAccount";
 import { Output, type OutputHandle } from "./Output";
-import { SmartAccount } from "./SmartAcc";
+
 function App() {
   const [loadingText, setLoadingText] = useState("");
   const outputRef = useRef<OutputHandle | null>(null);
@@ -14,9 +15,14 @@ function App() {
     outputRef.current?.addLine(`> ${line}`);
   };
 
+  const handleClearLines = () => {
+    outputRef.current?.clearLines();
+  };
+
   useEffect(() => {
-    if (isConnected) handleAddLine(`Connected with address: ${address}`);
-  }, [isConnected]);
+    handleClearLines();
+    if (isConnected && address) handleAddLine(`Connected with address: ${address}`);
+  }, [address]);
 
   return (
     <div className="wrapper">
