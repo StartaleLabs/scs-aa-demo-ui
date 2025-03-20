@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 
 export type OutputHandle = {
   addLine: (newLine: string, level?: string) => void;
+  clearLines: () => void;
 };
 
 type OutputProps = {
@@ -15,12 +16,13 @@ export const Output = forwardRef<OutputHandle, OutputProps>(({ loadingText }, re
   // Expose the addLine function to the parent component
   useImperativeHandle(ref, () => ({
     addLine: (newLine: string, level?: string) => {
-      setLines((prevLines) => [...prevLines, [newLine, level || "important"]]); // Append new line
+      setLines((prevLines) => [...prevLines, [newLine, level || "info"]]);
+    },
+    clearLines: () => {
+      setLines([]);
     },
   }));
 
-  // Handle blinking dots animation when isLoading is true
-  // Handle the blinking dots animation based on loadingText presence
   useEffect(() => {
     if (!loadingText) {
       setLoadingDots("");
@@ -33,13 +35,13 @@ export const Output = forwardRef<OutputHandle, OutputProps>(({ loadingText }, re
       count++;
     }, 500);
 
-    return () => clearInterval(interval); // Clear interval when loading stops
+    return () => clearInterval(interval);
   }, [loadingText]);
 
   return (
     <div className="output">
       {lines.map((line, index) => (
-        <div key={index} className={`line ${line[1]}`}>
+        <div key={`line-${index}`} className={`line ${line[1]}`}>
           {line[0]}
         </div>
       ))}

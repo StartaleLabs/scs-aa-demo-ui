@@ -15,9 +15,14 @@ function App() {
     outputRef.current?.addLine(`> ${line}`);
   };
 
+  const handleClearLines = () => {
+    outputRef.current?.clearLines();
+  };
+
   useEffect(() => {
-    if (isConnected) handleAddLine(`Connected with address: ${address}`);
-  }, [isConnected]);
+    handleClearLines();
+    if (isConnected && address) handleAddLine(`Connected with address: ${address}`);
+  }, [address]);
 
   return (
     <div className="wrapper">
