@@ -7,6 +7,7 @@ import { http } from "wagmi";
 import { Section } from "./Section";
 import { SocialRecoveryAbi } from "./abi/SocialRecovery";
 import { AA_CONFIG } from "./config";
+import { gasOutput } from "./gasOutput";
 const { MINATO_RPC, ACCOUNT_RECOVERY_MODULE_ADDRESS } = AA_CONFIG;
 
 const chain = soneiumMinato;
@@ -23,7 +24,7 @@ export function SocialRecoverySection({
   handleErrors,
 }: {
   nexusClient: NexusClient;
-  addLine: (line: string) => void;
+  addLine: (line: string, level?: string) => void;
   setLoadingText: (text: string) => void;
   handleErrors: (error: Error, message: string) => void;
 }) {
@@ -36,6 +37,18 @@ export function SocialRecoverySection({
       checkIsRecoveryModuleInstalled();
     }
   }, [nexusClient?.account?.address]);
+
+  const displayGasOutput = async () => {
+    await gasOutput(
+      (text) => {
+        console.log("got text: ", text);
+        console.log("Calling addLine with: ", text.trim(), "important");
+        addLine(text.trim(), "important");
+      },
+      nexusClient.account.address,
+      "Smart account balance:",
+    );
+  };
 
   const checkIsRecoveryModuleInstalled = async () => {
     // Social recovery module
@@ -91,8 +104,10 @@ export function SocialRecoverySection({
   };
 
   const addNewGuardianToExisting = async () => {
-    console.log("adding guardian to existing");
     setLoadingText("Adding guardian");
+
+    await displayGasOutput();
+
     const calls = [
       {
         to: ACCOUNT_RECOVERY_MODULE_ADDRESS,
@@ -117,6 +132,7 @@ export function SocialRecoverySection({
     setLoadingText("");
     setGuardian("");
     await getGuardians();
+    await displayGasOutput();
   };
 
   const installRecoveryModule = async () => {
@@ -162,6 +178,7 @@ export function SocialRecoverySection({
     const prevGuardian = index === 0 ? SENTINEL_ADDRESS : guardians[index - 1];
 
     setLoadingText("Removing guardian");
+    await displayGasOutput();
     const calls = [
       {
         to: ACCOUNT_RECOVERY_MODULE_ADDRESS,
@@ -181,9 +198,9 @@ export function SocialRecoverySection({
       hash: removeGuardianUserOpHash,
     });
 
-    console.log("Guardian removed successfully");
     addLine("Guardian removed successfully");
     setLoadingText("");
+    await displayGasOutput();
     await getGuardians();
   };
 

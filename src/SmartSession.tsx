@@ -33,7 +33,7 @@ import { http } from "wagmi";
 import { Section } from "./Section";
 import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
 import { AA_CONFIG } from "./config";
-
+import { gasOutput } from "./gasOutput";
 const { MINATO_RPC, BUNDLER_URL, PAYMASTER_SERVICE_URL, DICE_ROLL_LEDGER_ADDRESS } = AA_CONFIG;
 
 const scsContext = { calculateGasLimits: true, policyId: "sudo" };
@@ -61,7 +61,7 @@ export function SmartSessionSection({
   handleErrors,
 }: {
   nexusClient: NexusClient;
-  addLine: (line: string) => void;
+  addLine: (line: string, level?: string) => void;
   setLoadingText: (text: string) => void;
   handleErrors: (error: Error, message: string) => void;
 }) {
@@ -92,6 +92,18 @@ export function SmartSessionSection({
     }
   }, [activeSession]);
 
+  const displayGasOutput = async () => {
+    await gasOutput(
+      (text) => {
+        console.log("got text: ", text);
+        console.log("Calling addLine with: ", text.trim(), "important");
+        addLine(text.trim(), "important");
+      },
+      nexusClient.account.address,
+      "Smart account balance:",
+    );
+  };
+
   const checkIsSessionModuleInstalled = async () => {
     const sessionsModule = getSmartSessionsValidator({});
     const isSmartSessionsModuleInstalled = await nexusClient.isModuleInstalled({
@@ -114,6 +126,7 @@ export function SmartSessionSection({
 
       if (!isSessionModuleInstalled) {
         setLoadingText("Installing Smart Sessions module");
+        await displayGasOutput();
         const opHash = await nexusClient.installModule({
           module: sessionsModule,
         });
@@ -125,6 +138,7 @@ export function SmartSessionSection({
         });
         console.log("Operation result: ", result.receipt.transactionHash);
         addLine("Smart Sessions module installed successfully");
+        await displayGasOutput();
         setIsSessionModuleInstalled(true);
         setLoadingText("");
       }
@@ -145,6 +159,7 @@ export function SmartSessionSection({
       }
 
       setLoadingText("Creating session");
+      await displayGasOutput();
       let ownerKey = localStorage.getItem("sessionOwnerKey");
       if (!ownerKey) {
         ownerKey = generatePrivateKey();
@@ -198,6 +213,7 @@ export function SmartSessionSection({
       console.log("Operation result: ", result.receipt.transactionHash);
       console.log("Session created successfully", createSessionsResponse);
       addLine("Session created successfully");
+      await displayGasOutput();
       setLoadingText("");
     } catch (error) {
       console.error("Error creating session", error);
@@ -276,6 +292,7 @@ export function SmartSessionSection({
       });
       addLine(`Your roll: ${value}`);
       setLoadingText("Writing result to chain");
+      await displayGasOutput();
       const userOpHash = await useSmartSessionNexusClient.usePermission({
         calls: [
           {
@@ -298,6 +315,7 @@ export function SmartSessionSection({
 
       setLoadingText("");
       addLine("Result written to chain successfully");
+      await displayGasOutput();
       addLine(`Your results so far: ${ledgerStateAfter}`);
       addLine(
         `Your score total: ${ledgerStateAfter.reduce((a, b) => BigInt(a) + BigInt(b), BigInt(0))}`,

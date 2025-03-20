@@ -11,8 +11,8 @@ function App() {
   const outputRef = useRef<OutputHandle | null>(null);
   const { isConnected, address } = useAccount();
 
-  const handleAddLine = (line: string) => {
-    outputRef.current?.addLine(`> ${line}`);
+  const handleAddLine = (line: string, level?: string) => {
+    outputRef.current?.addLine(`> ${line}`, level);
   };
 
   const handleClearLines = () => {
