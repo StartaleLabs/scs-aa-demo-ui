@@ -81,7 +81,7 @@ export function SmartAccount({
       attesters: [MOCK_ATTESTER_ADDRESS],
       factoryAddress: NEXUS_K1_VALIDATOR_FACTORY_ADDRESS,
       validatorAddress: NEXUS_K1_VALIDATOR_ADDRESS,
-      index: BigInt(1000028),
+      index: BigInt(1000029),
     });
 
     console.log("nexusAccountInstance", nexusAccountInstance);

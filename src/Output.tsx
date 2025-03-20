@@ -12,10 +12,10 @@ type OutputProps = {
 export const Output = forwardRef<OutputHandle, OutputProps>(({ loadingText }, ref) => {
   const [lines, setLines] = useState<[string,string][]>([]);
   const [loadingDots, setLoadingDots] = useState("");
-
   // Expose the addLine function to the parent component
   useImperativeHandle(ref, () => ({
     addLine: (newLine: string, level?: string) => {
+      console.log(newLine, level);
       setLines((prevLines) => [...prevLines, [newLine, level || "info"]]);
     },
     clearLines: () => {
