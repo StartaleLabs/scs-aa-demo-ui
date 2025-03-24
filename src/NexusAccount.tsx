@@ -9,6 +9,7 @@ import { createPublicClient } from "viem";
 import { type GetPaymasterDataParameters, createPaymasterClient } from "viem/account-abstraction";
 import { soneiumMinato } from "viem/chains";
 import { http, useAccount } from "wagmi";
+import { PasskeySection } from "./PassKey";
 import { SmartSessionSection } from "./SmartSession";
 import { SocialRecoverySection } from "./SocialRecovery";
 import { AA_CONFIG } from "./config";
@@ -76,6 +77,7 @@ export function SmartAccount({
 
     const nexusAccountInstance = await toNexusAccount({
       signer: window.ethereum,
+
       chain,
       transport: http(),
       attesters: [MOCK_ATTESTER_ADDRESS],
@@ -95,6 +97,7 @@ export function SmartAccount({
         account: nexusAccount,
         transport: http(BUNDLER_URL),
         client: publicClient,
+
         paymaster: {
           async getPaymasterData(pmDataParams: GetPaymasterDataParameters) {
             pmDataParams.paymasterPostOpGasLimit = BigInt(100000);
@@ -130,7 +133,7 @@ export function SmartAccount({
     <div className="input">
       {nexusAccount && nexusClient && (
         <div>
-          <SocialRecoverySection
+          {/* <SocialRecoverySection
             nexusClient={nexusClient}
             addLine={addLine}
             setLoadingText={setLoadingText}
@@ -138,6 +141,11 @@ export function SmartAccount({
           />
           <SmartSessionSection
             nexusClient={nexusClient}
+            addLine={addLine}
+            setLoadingText={setLoadingText}
+            handleErrors={handleErrors}
+          /> */}
+          <PasskeySection
             addLine={addLine}
             setLoadingText={setLoadingText}
             handleErrors={handleErrors}
