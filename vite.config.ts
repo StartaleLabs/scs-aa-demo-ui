@@ -5,6 +5,11 @@ import { defineConfig } from "vite";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // resolve: {
+  //   alias: {
+  //     buffer: "buffer",
+  //   },
+  // },
   server: {
     proxy: {
       // Proxy /api to http://localhost:8080/v1

@@ -83,7 +83,7 @@ export function SmartAccount({
       attesters: [MOCK_ATTESTER_ADDRESS],
       factoryAddress: NEXUS_K1_VALIDATOR_FACTORY_ADDRESS,
       validatorAddress: NEXUS_K1_VALIDATOR_ADDRESS,
-      index: BigInt(1000029),
+      index: BigInt(1000031),
     });
 
     console.log("nexusAccountInstance", nexusAccountInstance);
@@ -133,7 +133,7 @@ export function SmartAccount({
     <div className="input">
       {nexusAccount && nexusClient && (
         <div>
-          {/* <SocialRecoverySection
+          <SocialRecoverySection
             nexusClient={nexusClient}
             addLine={addLine}
             setLoadingText={setLoadingText}
@@ -144,8 +144,9 @@ export function SmartAccount({
             addLine={addLine}
             setLoadingText={setLoadingText}
             handleErrors={handleErrors}
-          /> */}
+          />
           <PasskeySection
+            nexusClient={nexusClient}
             addLine={addLine}
             setLoadingText={setLoadingText}
             handleErrors={handleErrors}
