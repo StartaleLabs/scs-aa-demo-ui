@@ -1,4 +1,4 @@
-import type { NexusClient } from "@biconomy/abstractjs";
+import type { Module, NexusClient } from "@biconomy/abstractjs";
 import {
   type WebAuthnKey,
   WebAuthnMode,
@@ -42,6 +42,7 @@ export function PasskeySection({
   const [webAuthnKey, setWebAuthnKey] = useState<WebAuthnKey>(() =>
     JSON.parse(localStorage.getItem("webAuthnKey") || "null"),
   );
+  const [passKeyValidator, setPassKeyValidator] = useState<any>();
 
   const createKey = async () => {
     const _webAuthnKey = await toWebAuthnKey({
@@ -62,14 +63,33 @@ export function PasskeySection({
     setWebAuthnKey(_webAuthnKey);
   };
 
-  const installModule = async () => {
+
+  const logIn = async () => {
     try {
-      console.log("WebAuthnKey: ", webAuthnKey);
-      const passKeyValidator = await toPasskeyValidator({
-        webAuthnKey,
+      const _webAuthnKey = await toWebAuthnKey({
+        mode: WebAuthnMode.Login,
+      });
+
+      const _passKeyValidator = await toPasskeyValidator({
+        webAuthnKey: _webAuthnKey,
         // @ts-ignore
         account: nexusClient.account,
       });
+
+      // @ts-ignore
+      setPassKeyValidator(_passKeyValidator);
+    } catch (error) {
+      handleErrors(error as Error, "Error logging in");
+    }
+  };
+  const installModule = async () => {
+    try {
+      console.log("WebAuthnKey: ", webAuthnKey);
+      // const passKeyValidator = await toPasskeyValidator({
+      //   webAuthnKey,
+      //   // @ts-ignore
+      //   account: nexusClient.account,
+      // });
       console.log("PasskeyValidator: ", passKeyValidator);
       const userOpHash = await nexusClient.installModule({
         module: passKeyValidator,
@@ -88,6 +108,11 @@ export function PasskeySection({
       <div>
         <button type="button" onClick={createKey}>
           Create credential
+        </button>
+      </div>
+      <div>
+        <button type="button" onClick={logIn}>
+          Log in
         </button>
       </div>
       <div>
