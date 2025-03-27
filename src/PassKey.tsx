@@ -106,9 +106,9 @@ export function PasskeySection({
 
   const sendUserOp = async () => {
     try {
-      nexusClient.extend(moduleActivator(passKeyValidator));
+      const extendedClient = nexusClient.extend(moduleActivator(passKeyValidator));
 
-      const userOpHash = await nexusClient.sendUserOperation({
+      const userOpHash = await extendedClient.sendUserOperation({
         callData: await nexusClient.account.encodeCalls([
           {
             to: DICE_ROLL_LEDGER_ADDRESS,
