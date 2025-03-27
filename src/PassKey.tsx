@@ -1,4 +1,4 @@
-import type { Module, NexusClient } from "@biconomy/abstractjs";
+import { type Module, type NexusClient, moduleActivator } from "@biconomy/abstractjs";
 import {
   type WebAuthnKey,
   WebAuthnMode,
@@ -7,7 +7,7 @@ import {
 } from "@biconomy/passkey";
 
 import { useState } from "react";
-import { http, type Hex, createPublicClient } from "viem";
+import { http, type Hex, createPublicClient, encodeFunctionData } from "viem";
 import { createPaymasterClient } from "viem/account-abstraction";
 import { soneiumMinato } from "viem/chains";
 import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
@@ -96,11 +96,39 @@ export function PasskeySection({
       });
 
       const receipt = await nexusClient.waitForUserOperationReceipt({ hash: userOpHash as Hex });
+
+      nexusClient.extend(moduleActivator(passKeyValidator));
       console.log("Receipt: ", receipt);
     } catch (error) {
       handleErrors(error as Error, "Error installing module");
     }
   };
+
+  const sendUserOp = async () => {
+    try {
+      nexusClient.extend(moduleActivator(passKeyValidator));
+
+      const userOpHash = await nexusClient.sendUserOperation({
+        callData: await nexusClient.account.encodeCalls([
+          {
+            to: DICE_ROLL_LEDGER_ADDRESS,
+            data: encodeFunctionData({
+              abi: DiceRollLedgerAbi,
+              functionName: "writeDiceRoll",
+              args: [BigInt(3)],
+            }),
+          },
+        ]),
+      });
+
+      const receipt = await nexusClient.waitForUserOperationReceipt({ hash: userOpHash });
+
+      console.log("Receipt: ", receipt);
+    } catch (error) {
+      handleErrors(error as Error, "Error sending user operation");
+    }
+  };
+
 
   return (
     <div>
@@ -121,7 +149,9 @@ export function PasskeySection({
         </button>
       </div>
       <div>
-        <button type="button">Send userOp</button>
+        <button type="button" onClick={sendUserOp}>
+          Send userOp
+        </button>
       </div>
     </div>
   );
