@@ -4,14 +4,18 @@ import {
   createSmartAccountClient,
   toNexusAccount,
 } from "@biconomy/abstractjs";
-import { useEffect, useState } from "react";
-import { createPublicClient } from "viem";
+
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+
+import { useEffect, useRef, useState } from "react";
+import { createPublicClient, createWalletClient, custom } from "viem";
 import { type GetPaymasterDataParameters, createPaymasterClient } from "viem/account-abstraction";
 import { soneiumMinato } from "viem/chains";
-import { http, useAccount } from "wagmi";
+import { http } from "wagmi";
 import { SmartSessionSection } from "./SmartSession";
 import { SocialRecoverySection } from "./SocialRecovery";
 import { AA_CONFIG } from "./config";
+
 const {
   MOCK_ATTESTER_ADDRESS,
   NEXUS_K1_VALIDATOR_FACTORY_ADDRESS,
@@ -37,17 +41,51 @@ const paymasterClient = createPaymasterClient({
 export function SmartAccount({
   setLoadingText,
   addLine,
-}: { setLoadingText: (text: string) => void; addLine: (line: string, level?: string) => void }) {
-  const eoaAccount = useAccount();
-
+  clearLines,
+}: {
+  setLoadingText: (text: string) => void;
+  addLine: (line: string, level?: string) => void;
+  clearLines: () => void;
+}) {
+  const { authenticated } = usePrivy();
+  const { wallets } = useWallets();
   const [nexusAccount, setNexusAccount] = useState<NexusAccount>();
   const [nexusClient, setNexusClient] = useState<NexusClient>();
 
+  const didLogout = useRef(false);
+
   useEffect(() => {
-    if (!eoaAccount?.address) return;
+    if (!authenticated && didLogout.current === false) {
+      // First time we detect a logout
+      cleanUp();
+      didLogout.current = true;
+    }
+
+    if (authenticated && didLogout.current) {
+      // Reset on login
+      didLogout.current = false;
+    }
+  }, [authenticated]);
+
+  useEffect(() => {
+    if (!authenticated) {
+      return;
+    }
+    if (!wallets[0]?.address) {
+      setNexusAccount(undefined);
+      setNexusClient(undefined);
+      clearLines();
+      return;
+    }
 
     getSmartAccountInstance();
-  }, [eoaAccount?.address]);
+  }, [wallets[0]?.address]);
+
+  useEffect(() => {
+    if (wallets.length > 0) {
+      console.log("wallets", wallets);
+    }
+  }, [wallets]);
 
   useEffect(() => {
     if (nexusAccount) {
@@ -58,8 +96,11 @@ export function SmartAccount({
   useEffect(() => {
     if (nexusClient) {
       addLine("Nexus client instantiated");
+
+      console.log("Nexus client instance:", nexusClient);
     }
   }, [nexusClient]);
+
   const handleErrors = (error: Error, text?: string) => {
     setLoadingText("");
     addLine(text || "Something has gone wrong.");
@@ -69,13 +110,24 @@ export function SmartAccount({
     );
   };
 
-  const getSmartAccountInstance = async () => {
-    if (!eoaAccount?.address) {
-      throw new Error("No connected account");
-    }
+  const cleanUp = () => {
+    clearLines();
+    setNexusAccount(undefined);
+    setNexusClient(undefined);
+    addLine("User logged out");
+    addLine("Nexus account and client cleaned up");
+  };
 
+  const getSmartAccountInstance = async () => {
+    const provider = await wallets[0].getEthereumProvider();
+
+    const walletClient = createWalletClient({
+      account: wallets[0].address as `0x${string}`,
+      chain: soneiumMinato, // or use `chain` if it's your custom viem chain
+      transport: custom(provider),
+    });
     const nexusAccountInstance = await toNexusAccount({
-      signer: window.ethereum,
+      signer: walletClient,
       chain,
       transport: http(),
       attesters: [MOCK_ATTESTER_ADDRESS],

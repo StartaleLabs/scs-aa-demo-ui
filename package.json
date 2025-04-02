@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@biconomy/abstractjs": "^0.1.0",
+    "@privy-io/react-auth": "^2.7.0",
     "@rainbow-me/rainbowkit": "^2.2.3",
     "@rhinestone/module-sdk": "0.2.3",
     "@tanstack/react-query": "^5.66.4",
