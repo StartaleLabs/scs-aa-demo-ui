@@ -1,11 +1,4 @@
-import {
-    type NexusAccount,
-    type NexusClient,
-    toNexusAccount,
-  } from "@biconomy/abstractjs";
-// Above is todo in the sdk
-
-  import { createSmartAccountClient, toStartaleSmartAccount } from "startale-aa-sdk";
+  import { createSmartAccountClient, StartaleAccountClient, StartaleSmartAccount, toStartaleSmartAccount } from "startale-aa-sdk";
   
   import { usePrivy, useWallets } from "@privy-io/react-auth";
   
@@ -51,8 +44,8 @@ import {
   }) {
     const { authenticated } = usePrivy();
     const { wallets } = useWallets();
-    const [startaleAccount, setNexusAccount] = useState<NexusAccount>();
-    const [startaleClient, setNexusClient] = useState<NexusClient>();
+    const [startaleAccount, setStartaleAccount] = useState<StartaleSmartAccount>();
+    const [startaleClient, setStartaleClient] = useState<StartaleAccountClient>();
   
     const didLogout = useRef(false);
   
@@ -74,8 +67,8 @@ import {
         return;
       }
       if (!wallets[0]?.address) {
-        setNexusAccount(undefined);
-        setNexusClient(undefined);
+        setStartaleAccount(undefined);
+        setStartaleClient(undefined);
         clearLines();
         return;
       }
@@ -97,7 +90,7 @@ import {
   
     useEffect(() => {
       if (startaleClient) {
-        addLine("Nexus client instantiated");
+        addLine("Startale account client instantiated");
   
         console.log("Nexus client instance:", startaleClient);
       }
@@ -114,10 +107,10 @@ import {
   
     const cleanUp = () => {
       clearLines();
-      setNexusAccount(undefined);
-      setNexusClient(undefined);
+      setStartaleAccount(undefined);
+      setStartaleClient(undefined);
       addLine("User logged out");
-      addLine("Nexus account and client cleaned up");
+      addLine("Startale account and client cleaned up");
     };
   
     const getSmartAccountInstance = async () => {
@@ -132,12 +125,12 @@ import {
           signer: walletClient as any, 
           chain: chain as any,
           transport: http() as any,
-          index: BigInt(10000295),
+          index: BigInt(100002956),
       });
   
       console.log("startaleAccountInstance", startaleAccountInstance);
       addLine(`Startale account created: ${startaleAccountInstance.address}`);
-      setNexusAccount(startaleAccountInstance as any);
+      setStartaleAccount(startaleAccountInstance as any);
     };
   
     const initClient = async () => {
@@ -170,7 +163,7 @@ import {
             },
           },
         });
-        setNexusClient(nexusClientInstance as any);
+        setStartaleClient(nexusClientInstance as any);
       } catch (error) {
         console.error("Error initializing kernel client", error);
         handleErrors(error as Error, "Error initializing kernel client");
@@ -182,13 +175,13 @@ import {
         {startaleAccount && startaleClient && (
           <div>
             <SocialRecoverySection
-              nexusClient={startaleClient}
+              nexusClient={startaleClient as any}
               addLine={addLine}
               setLoadingText={setLoadingText}
               handleErrors={handleErrors}
             />
             <SmartSessionSection
-              nexusClient={startaleClient}
+              nexusClient={startaleClient as any}
               addLine={addLine}
               setLoadingText={setLoadingText}
               handleErrors={handleErrors}

@@ -95,7 +95,7 @@ export function SmartAccount({
 
   useEffect(() => {
     if (nexusClient) {
-      addLine("Nexus client instantiated");
+      addLine("Startale account client instantiated");
 
       console.log("Nexus client instance:", nexusClient);
     }
@@ -115,7 +115,7 @@ export function SmartAccount({
     setNexusAccount(undefined);
     setNexusClient(undefined);
     addLine("User logged out");
-    addLine("Nexus account and client cleaned up");
+    addLine("Startale account and client cleaned up");
   };
 
   const getSmartAccountInstance = async () => {
@@ -133,7 +133,7 @@ export function SmartAccount({
       attesters: [MOCK_ATTESTER_ADDRESS],
       factoryAddress: NEXUS_K1_VALIDATOR_FACTORY_ADDRESS,
       validatorAddress: NEXUS_K1_VALIDATOR_ADDRESS,
-      index: BigInt(1000029),
+      index: BigInt(10000298),
     });
 
     console.log("nexusAccountInstance", nexusAccountInstance);
