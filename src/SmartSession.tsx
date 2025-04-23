@@ -3,10 +3,8 @@ import {
   type NexusClient,
   type SessionData,
   createSmartAccountClient,
-  smartSessionCreateActions,
-  smartSessionUseActions,
+  smartSessionActions,
   toNexusAccount,
-  toSmartSessionsValidator,
 } from "@biconomy/abstractjs";
 import {
   SmartSessionMode,
@@ -166,12 +164,9 @@ export function SmartSessionSection({
         localStorage.setItem("sessionOwnerKey", ownerKey);
       }
       const sessionOwner = privateKeyToAccount(ownerKey as `0x${string}`);
-      const sessionsModule = toSmartSessionsValidator({
-        account: nexusClient.account,
-        signer: sessionOwner,
-      });
 
-      const nexusSessionClient = nexusClient.extend(smartSessionCreateActions(sessionsModule));
+
+      const nexusSessionClient = nexusClient.extend(smartSessionActions());
 
       const selector = toFunctionSelector("writeDiceRoll(uint256)");
       const sessionRequestedInfo: CreateSessionDataParams[] = [

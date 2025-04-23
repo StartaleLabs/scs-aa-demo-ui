@@ -1,29 +1,22 @@
 import {
-  type NexusAccount,
-  type NexusClient,
+  type StartaleSmartAccount,
   createSmartAccountClient,
-  toNexusAccount,
-} from "@biconomy/abstractjs";
+  toStartaleSmartAccount,
+} from "scs-smart-account-sdk";
 
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 
+import type { NexusClient } from "@biconomy/abstractjs";
 import { useEffect, useRef, useState } from "react";
 import { createPublicClient, createWalletClient, custom } from "viem";
 import { type GetPaymasterDataParameters, createPaymasterClient } from "viem/account-abstraction";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
-import { SmartSessionSection } from "./SmartSession";
+// import { SmartSessionSection } from "./SmartSession";
 import { SocialRecoverySection } from "./SocialRecovery";
 import { AA_CONFIG } from "./config";
 
-const {
-  MOCK_ATTESTER_ADDRESS,
-  NEXUS_K1_VALIDATOR_FACTORY_ADDRESS,
-  NEXUS_K1_VALIDATOR_ADDRESS,
-  MINATO_RPC,
-  BUNDLER_URL,
-  PAYMASTER_SERVICE_URL,
-} = AA_CONFIG;
+const { MINATO_RPC, BUNDLER_URL, PAYMASTER_SERVICE_URL } = AA_CONFIG;
 
 const scsContext = { calculateGasLimits: true, policyId: "sudo" };
 
@@ -49,8 +42,8 @@ export function SmartAccount({
 }) {
   const { authenticated } = usePrivy();
   const { wallets } = useWallets();
-  const [nexusAccount, setNexusAccount] = useState<NexusAccount>();
-  const [nexusClient, setNexusClient] = useState<NexusClient>();
+  const [startaleAccount, setStartaleAccount] = useState<StartaleSmartAccount>();
+  const [startaleClient, setStartaleClient] = useState<NexusClient>();
 
   const didLogout = useRef(false);
 
@@ -72,8 +65,8 @@ export function SmartAccount({
       return;
     }
     if (!wallets[0]?.address) {
-      setNexusAccount(undefined);
-      setNexusClient(undefined);
+      setStartaleAccount(undefined);
+      setStartaleClient(undefined);
       clearLines();
       return;
     }
@@ -88,18 +81,18 @@ export function SmartAccount({
   }, [wallets]);
 
   useEffect(() => {
-    if (nexusAccount) {
+    if (startaleAccount) {
       initClient();
     }
-  }, [nexusAccount]);
+  }, [startaleAccount]);
 
   useEffect(() => {
-    if (nexusClient) {
-      addLine("Nexus client instantiated");
+    if (startaleClient) {
+      addLine("Startale client instantiated");
 
-      console.log("Nexus client instance:", nexusClient);
+      console.log("Startale client instance:", startaleClient);
     }
-  }, [nexusClient]);
+  }, [startaleClient]);
 
   const handleErrors = (error: Error, text?: string) => {
     setLoadingText("");
@@ -112,39 +105,36 @@ export function SmartAccount({
 
   const cleanUp = () => {
     clearLines();
-    setNexusAccount(undefined);
-    setNexusClient(undefined);
+    setStartaleAccount(undefined);
+    setStartaleClient(undefined);
     addLine("User logged out");
-    addLine("Nexus account and client cleaned up");
+    addLine("Startale account and client cleaned up");
   };
 
   const getSmartAccountInstance = async () => {
-    const provider = await wallets[0].getEthereumProvider();
 
+    const provider = await wallets[0].getEthereumProvider();
     const walletClient = createWalletClient({
       account: wallets[0].address as `0x${string}`,
       chain: soneiumMinato, // or use `chain` if it's your custom viem chain
       transport: custom(provider),
     });
-    const nexusAccountInstance = await toNexusAccount({
+    const startaleAccountInstance = await toStartaleSmartAccount({
       signer: walletClient,
       chain,
       transport: http(),
-      attesters: [MOCK_ATTESTER_ADDRESS],
-      factoryAddress: NEXUS_K1_VALIDATOR_FACTORY_ADDRESS,
-      validatorAddress: NEXUS_K1_VALIDATOR_ADDRESS,
       index: BigInt(1000029),
     });
 
-    console.log("nexusAccountInstance", nexusAccountInstance);
-    addLine(`Nexus account created: ${nexusAccountInstance.address}`);
-    setNexusAccount(nexusAccountInstance);
+    console.log("star", startaleAccountInstance);
+    addLine(`Nexus account created: ${startaleAccountInstance.address}`);
+    setStartaleAccount(startaleAccountInstance);
   };
 
   const initClient = async () => {
     try {
-      const nexusClientInstance = createSmartAccountClient({
-        account: nexusAccount,
+      const startaleClientInstance = createSmartAccountClient({
+        account: startaleAccount,
         transport: http(BUNDLER_URL),
         client: publicClient,
         paymaster: {
@@ -162,6 +152,9 @@ export function SmartAccount({
           },
         },
         paymasterContext: scsContext,
+        //////////////////////////////////////
+        // THIS CAN OPTIONALLY BE OVERWRITTEN
+        //////////////////////////////////////
         userOperation: {
           estimateFeesPerGas: async () => {
             return {
@@ -171,7 +164,7 @@ export function SmartAccount({
           },
         },
       });
-      setNexusClient(nexusClientInstance);
+      setStartaleClient(startaleClientInstance as NexusClient);
     } catch (error) {
       console.error("Error initializing kernel client", error);
       handleErrors(error as Error, "Error initializing kernel client");
@@ -180,20 +173,20 @@ export function SmartAccount({
 
   return (
     <div className="input">
-      {nexusAccount && nexusClient && (
+      {startaleAccount && startaleClient && (
         <div>
           <SocialRecoverySection
-            nexusClient={nexusClient}
+            nexusClient={startaleClient}
             addLine={addLine}
             setLoadingText={setLoadingText}
             handleErrors={handleErrors}
           />
-          <SmartSessionSection
-            nexusClient={nexusClient}
+          {/* <SmartSessionSection
+            nexusClient={startaleClient}
             addLine={addLine}
             setLoadingText={setLoadingText}
             handleErrors={handleErrors}
-          />
+          /> */}
         </div>
       )}
     </div>

@@ -26,6 +26,7 @@ createRoot(root).render(
         // Create embedded wallets for users who don't have a wallet
         embeddedWallets: {
           createOnLogin: "all-users",
+          showWalletUIs: false,
         },
         supportedChains: [soneiumMinato],
         defaultChain: soneiumMinato,
