@@ -89,7 +89,7 @@
       if (startaleClient) {
         addLine("Startale account client instantiated");
   
-        console.log("Nexus client instance:", startaleClient);
+        console.log("Startale client instance:", startaleClient);
       }
     }, [startaleClient]);
   
@@ -119,9 +119,9 @@
         transport: custom(provider),
       });
       const startaleAccountInstance = await toStartaleSmartAccount({
-          signer: walletClient as any, 
-          chain: chain as any,
-          transport: http() as any,
+          signer: walletClient, 
+          chain: chain,
+          transport: http(),
           index: BigInt(10000295688),
       });
   
