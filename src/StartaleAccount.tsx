@@ -12,9 +12,6 @@
   import { AA_CONFIG } from "./config";
   
   const {
-    MOCK_ATTESTER_ADDRESS,
-    NEXUS_K1_VALIDATOR_FACTORY_ADDRESS,
-    NEXUS_K1_VALIDATOR_ADDRESS,
     MINATO_RPC,
     BUNDLER_URL,
     PAYMASTER_SERVICE_URL,
@@ -125,7 +122,7 @@
           signer: walletClient as any, 
           chain: chain as any,
           transport: http() as any,
-          index: BigInt(100002956),
+          index: BigInt(10000295688),
       });
   
       console.log("startaleAccountInstance", startaleAccountInstance);
@@ -135,7 +132,7 @@
   
     const initClient = async () => {
       try {
-        const nexusClientInstance = createSmartAccountClient({
+        const startaleClientInstance = createSmartAccountClient({
           account: startaleAccount,
           transport: http(BUNDLER_URL),
           client: publicClient,
@@ -163,7 +160,7 @@
             },
           },
         });
-        setStartaleClient(nexusClientInstance as any);
+        setStartaleClient(startaleClientInstance as any);
       } catch (error) {
         console.error("Error initializing kernel client", error);
         handleErrors(error as Error, "Error initializing kernel client");
@@ -175,13 +172,13 @@
         {startaleAccount && startaleClient && (
           <div>
             <SocialRecoverySection
-              nexusClient={startaleClient as any}
+              startaleClient={startaleClient as any}
               addLine={addLine}
               setLoadingText={setLoadingText}
               handleErrors={handleErrors}
             />
             <SmartSessionSection
-              nexusClient={startaleClient as any}
+              startaleClient={startaleClient as any}
               addLine={addLine}
               setLoadingText={setLoadingText}
               handleErrors={handleErrors}

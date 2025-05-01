@@ -11,7 +11,6 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
-    "@biconomy/abstractjs": "^0.1.0",
     "@privy-io/react-auth": "^2.7.0",
     "@rainbow-me/rainbowkit": "^2.2.3",
     "@rhinestone/module-sdk": "0.2.7",
@@ -20,8 +19,8 @@
     "react": "^19.0.0",
     "react-dice-roll": "^1.2.2",
     "react-dom": "^19.0.0",
-    "startale-aa-sdk": "0.0.3",
-    "viem": "^2.23.2",
+    "startale-aa-sdk": "^0.0.6",
+    "viem": "2.23.2",
     "wagmi": "^2.14.11"
   },
   "devDependencies": {
@@ -29,7 +28,7 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
-    "typescript": "~5.7.2",
+    "typescript": "^5.8.3",
     "vite": "^6.1.0"
   },
   "overrides": {

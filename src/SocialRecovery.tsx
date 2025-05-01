@@ -1,4 +1,4 @@
-import type { NexusClient } from "@biconomy/abstractjs";
+import type { StartaleAccountClient } from "startale-aa-sdk";
 import { type Module, getSocialRecoveryValidator } from "@rhinestone/module-sdk";
 import { useEffect, useState } from "react";
 import { createPublicClient, encodeFunctionData } from "viem";
@@ -18,12 +18,12 @@ const publicClient = createPublicClient({
 });
 
 export function SocialRecoverySection({
-  nexusClient,
+  startaleClient,
   addLine,
   setLoadingText,
   handleErrors,
 }: {
-  nexusClient: NexusClient;
+  startaleClient: StartaleAccountClient;
   addLine: (line: string, level?: string) => void;
   setLoadingText: (text: string) => void;
   handleErrors: (error: Error, message: string) => void;
@@ -33,10 +33,10 @@ export function SocialRecoverySection({
   const [guardian, setGuardian] = useState<`0x${string}` | "">("");
 
   useEffect(() => {
-    if (nexusClient) {
+    if (startaleClient) {
       checkIsRecoveryModuleInstalled();
     }
-  }, [nexusClient?.account?.address]);
+  }, [startaleClient?.account?.address]);
 
   const displayGasOutput = async () => {
     await gasOutput(
@@ -45,7 +45,7 @@ export function SocialRecoverySection({
         console.log("Calling addLine with: ", text.trim(), "important");
         addLine(text.trim(), "important");
       },
-      nexusClient.account.address,
+      startaleClient.account.address,
       "Smart account balance:",
     );
   };
@@ -62,7 +62,7 @@ export function SocialRecoverySection({
     };
     console.log("Social Recovery Module: ", socialRecoveryModule);
 
-    const recoveryModuleInstalled = await nexusClient.isModuleInstalled({
+    const recoveryModuleInstalled = await startaleClient.isModuleInstalled({
       module: socialRecoveryModule,
     });
 
@@ -81,7 +81,7 @@ export function SocialRecoverySection({
       address: ACCOUNT_RECOVERY_MODULE_ADDRESS,
       abi: SocialRecoveryAbi,
       functionName: "getGuardians",
-      args: [nexusClient.account.address],
+      args: [startaleClient.account.address],
     })) as `0x${string}`[];
     console.log("Account Guardians: ", accountGuardians);
     setGuardians(accountGuardians);
@@ -89,8 +89,8 @@ export function SocialRecoverySection({
 
   const handleAddNewGuardian = async () => {
     try {
-      if (!nexusClient) {
-        throw new Error("Nexus client not initialized");
+      if (!startaleClient) {
+        throw new Error("Startale client not initialized");
       }
       if (!isRecoveryModuleInstalled) {
         await installRecoveryModule();
@@ -119,11 +119,11 @@ export function SocialRecoverySection({
         }),
       },
     ];
-    const addGuardianUserOpHash = await nexusClient.sendUserOperation({
-      callData: await nexusClient.account.encodeCalls(calls),
+    const addGuardianUserOpHash = await startaleClient.sendUserOperation({
+      callData: await startaleClient.account.encodeCalls(calls),
     });
 
-    await nexusClient.waitForUserOperationReceipt({
+    await startaleClient.waitForUserOperationReceipt({
       hash: addGuardianUserOpHash,
     });
 
@@ -148,11 +148,11 @@ export function SocialRecoverySection({
 
       setLoadingText("Installing recovery module and adding guardian");
 
-      const installModuleUserOpHash = await nexusClient.installModule({
+      const installModuleUserOpHash = await startaleClient.installModule({
         module: socialRecoveryModule,
       });
 
-      await nexusClient.waitForUserOperationReceipt({
+      await startaleClient.waitForUserOperationReceipt({
         hash: installModuleUserOpHash,
       });
 
@@ -190,11 +190,11 @@ export function SocialRecoverySection({
         }),
       },
     ];
-    const removeGuardianUserOpHash = await nexusClient.sendUserOperation({
-      callData: await nexusClient.account.encodeCalls(calls),
+    const removeGuardianUserOpHash = await startaleClient.sendUserOperation({
+      callData: await startaleClient.account.encodeCalls(calls),
     });
 
-    await nexusClient.waitForUserOperationReceipt({
+    await startaleClient.waitForUserOperationReceipt({
       hash: removeGuardianUserOpHash,
     });
 
