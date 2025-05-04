@@ -122,7 +122,7 @@
           signer: walletClient, 
           chain: chain,
           transport: http(),
-          index: BigInt(10000295688),
+          index: BigInt(7777888899991910910),
       });
   
       console.log("startaleAccountInstance", startaleAccountInstance);
