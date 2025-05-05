@@ -3,7 +3,7 @@ import { useLogin, useLogout, usePrivy } from "@privy-io/react-auth";
 import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
 import startaleLogo from "../public/startale_logo.webp";
-import { SmartAccount } from "./NexusAccount";
+import { SmartAccount } from "./StartaleAccount";
 import { Output, type OutputHandle } from "./Output";
 
 function App() {
