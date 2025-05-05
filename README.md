@@ -4,7 +4,7 @@ This demo showcases a decentralized dice-rolling game that utilizes smart accoun
 
 It also features optional social recovery functionality.
 
-Currently, the demo utilizes Bicomomy's Nexus smart contract wallet implementation with Rhinestone's 7579 modules.
+Currently, the demo utilizes Startale's smart contract wallet implementation with Rhinestone's 7579 modules.
 
 ---
 
@@ -53,7 +53,7 @@ This section details the core technologies, smart contracts, and SDKs used in th
 ### Key Libraries and SDKs
   - `rhinestone/module-sdk`, for interaction with ERC-7579 modules
     - NOTE: for compatibility reasons, the module version is locked to `0.2.3`
-  - `@biconomy/abstractjs` instantiate and manage Nexus accounts
+  - `startale-aa-sdk` instantiate and manage accounts
   - `viem` for SC interaction from TS
   - and optionally `wagmi` for ReactJs integration
 
@@ -63,11 +63,8 @@ This section details the core technologies, smart contracts, and SDKs used in th
   # Standard entrypoint v0.7.0 address
   ENTRY_POINT_ADDRESS=0x0000000071727De22E5E9d8BAf0edAc6f37da032
 
-  # Nexus smart contract wallet related contracts
+  # smart contract wallet related contracts
   ACCOUNT_RECOVERY_MODULE_ADDRESS=0xA04D053b3C8021e8D5bF641816c42dAA75D8b597
-  NEXUS_K1_VALIDATOR_ADDRESS=0x9130927806aC54F93Feb58Eb459c08dcA7D116F8
-  NEXUS_K1_VALIDATOR_FACTORY_ADDRESS=0x2ecd86799137FA35De834Da03D876bcc363ec0c3
-  MOCK_ATTESTER_ADDRESS="0xaeD4d8bAa80948d54d33dE041513D30124e1Ae3f"
 
   # ERC-7579 compatible modules
   ACCOUNT_RECOVERY_MODULE_ADDRESS=0x29c3e3268e36f14A4D1fEe97DD94EF2F60496a2D
@@ -119,31 +116,28 @@ PAYMASTER_SERVICE_URL=https://paymaster.scs.startale.com/v1?apikey=[API_KEY]
     });
    ```
 
-2. **Create a Nexus Smart Account and a client**
+2. **Create a Smart Account and a client**
 
-   - Utilize `@biconomy/abstractjs` to instantiate a smart account.
+   - Utilize `startale-aa-sdk` to instantiate a smart account.
    - Use `window.ethereum` provider as a signer
    - for backend use a different `signer` instance (f.ex. `viem`'s local wallet)
    - use `createSmartAccountClient` for further interaction with the account
 
    ```typescript
-   import { type NexusAccount, type NexusClient, createSmartAccountClient, toNexusAccount } from "@biconomy/abstractjs";
+   import { type StartaleSmartAccount, type StartaleAccountClient, createSmartAccountClient, toStartaleSmartAccount } from "@biconomy/abstractjs";
 
-    // Create a Nexus account
-    const nexusAccountInstance = await toNexusAccount({
+    // Create an account
+    const startaleAccountInstance = await toStartaleSmartAccount({
       signer: window.ethereum,
       chain,
       transport: http(),
-      attesters: [MOCK_ATTESTER_ADDRESS],
-      factoryAddress: NEXUS_K1_VALIDATOR_FACTORY_ADDRESS,
-      validatorAddress: NEXUS_K1_VALIDATOR_ADDRESS,
       index: BigInt(0), //Nonce for account instance
     });
 
     const scsContext = { calculateGasLimits: false, policyId: "sudo" };
 
-    const nexusClientInstance = createSmartAccountClient({
-        account: nexusAccount,
+    const accountClientInstance = createSmartAccountClient({
+        account: startaleAccountInstance,
         transport: http(BUNDLER_URL),
         client: publicClient,
         paymaster: {
@@ -176,7 +170,7 @@ Note: Paymaster actions and userOperation gas estimation are overridden for comp
 3. **Install Social Recovery Module (Optional)**
 
     - Set up recovery guardians using `getSocialRecoveryValidator` from `@rhinestone/module-sdk`.
-    - Install it via the `nexusClient.installModule()` function.
+    - Install it via the `accountClientInstance.installModule()` function.
     ```typescript
 
     const socialRecovery = getSocialRecoveryValidator({
@@ -185,7 +179,7 @@ Note: Paymaster actions and userOperation gas estimation are overridden for comp
       guardians: [guardianAddress],
     });
 
-    const installModuleUserOpHash = await nexusClient.installModule({
+    const installModuleUserOpHash = await accountClientInstance.installModule({
         module: socialRecoveryModule,
       });
 
@@ -201,8 +195,8 @@ Note: Paymaster actions and userOperation gas estimation are overridden for comp
         }),
       },
     ];
-    const addGuardianUserOpHash = await nexusClient.sendUserOperation({
-      callData: await nexusClient.account.encodeCalls(calls),
+    const addGuardianUserOpHash = await accountClientInstance.sendUserOperation({
+      callData: await accountClientInstance.account.encodeCalls(calls),
     });
 
     // Remove guardian
@@ -226,8 +220,8 @@ Note: Paymaster actions and userOperation gas estimation are overridden for comp
         }),
       },
     ];
-    const removeGuardianUserOpHash = await nexusClient.sendUserOperation({
-      callData: await nexusClient.account.encodeCalls(calls),
+    const removeGuardianUserOpHash = await accountClientInstance.sendUserOperation({
+      callData: await accountClientInstance.account.encodeCalls(calls),
     });
 
     // Get guardians list
@@ -235,7 +229,7 @@ Note: Paymaster actions and userOperation gas estimation are overridden for comp
       address: ACCOUNT_RECOVERY_MODULE_ADDRESS,
       abi: SocialRecoveryAbi,
       functionName: "getGuardians",
-      args: [nexusClient.account.address],
+      args: [accountClientInstance.account.address],
     });
    ```
 
@@ -247,12 +241,12 @@ Note: Paymaster actions and userOperation gas estimation are overridden for comp
     ```typescript
     const sessionsModule = getSmartSessionsValidator({});
 
-    const opHash = await nexusClient.installModule({
+    const opHash = await accountClientInstance.installModule({
           module: sessionsModule,
         });
 
     // Check
-    const isSmartSessionsModuleInstalled = await nexusClient.isModuleInstalled({
+    const isSmartSessionsModuleInstalled = await accountClientInstance.isModuleInstalled({
       module: sessionsModule,
     });
     ```
@@ -266,11 +260,11 @@ Note: Paymaster actions and userOperation gas estimation are overridden for comp
 
     const sessionOwner = privateKeyToAccount(ownerKey as `0x${string}`);
       const sessionsModule = toSmartSessionsValidator({
-        account: nexusClient.account,
+        account: accountClientInstance.account,
         signer: sessionOwner,
       });
 
-      const nexusSessionClient = nexusClient.extend(smartSessionCreateActions(sessionsModule));
+      const startaleSessionClient = accountClientInstance.extend(smartSessionCreateActions(sessionsModule));
 
       const selector = toFunctionSelector("writeDiceRoll(uint256)");
       const sessionRequestedInfo: CreateSessionDataParams[] = [
@@ -286,12 +280,12 @@ Note: Paymaster actions and userOperation gas estimation are overridden for comp
         },
       ];
 
-      const createSessionsResponse = await nexusSessionClient.grantPermission({
+      const createSessionsResponse = await startaleSessionClient.grantPermission({
         sessionRequestedInfo,
       });
 
       const sessionData: SessionData = {
-        granter: nexusClient.account.address,
+        granter: accountClientInstance.account.address,
         description: `Session to increment a counter for ${DICE_ROLL_LEDGER_ADDRESS}`,
         sessionPublicKey: sessionOwner.address,
         moduleData: {
@@ -306,23 +300,23 @@ Note: Paymaster actions and userOperation gas estimation are overridden for comp
 6. **Send Transactions Using Session Keys**
 
    - Sign transactions using a generated session key.
-   - The app automatically prepares and sends user operations via the Nexus client.
+   - The app automatically prepares and sends user operations via the smart account client.
 
     ```Typescript
 
     const isEnabled = await isSessionEnabled({
-        client: nexusClient.account.client as PublicClient,
+        client: accountClientInstance.account.client as PublicClient,
         account: {
-          type: "nexus",
-          address: nexusClient.account.address,
+          type: "erc7579-implementation",
+          address: accountClientInstance.account.address,
           deployedOnChains: [chain.id],
         },
         permissionId: activeSession.moduleData.permissionIds[0],
       });
 
       const sessionOwner = privateKeyToAccount(ownerKey);
-      const smartSessionNexusClient = createSmartAccountClient({
-        account: await toNexusAccount({
+      const smartSessionClient = createSmartAccountClient({
+        account: await toStartaleSmartAccount({
           signer: sessionOwner,
           accountAddress: activeSession.granter,
           chain: chain,
@@ -357,12 +351,12 @@ Note: Paymaster actions and userOperation gas estimation are overridden for comp
       });
 
       const usePermissionsModule = toSmartSessionsValidator({
-        account: smartSessionNexusClient.account,
+        account: smartSessionClient.account,
         signer: sessionOwner,
         moduleData: activeSession.moduleData,
       });
 
-      const useSmartSessionNexusClient = smartSessionNexusClient.extend(
+      const useSmartSessionClient = smartSessionClient.extend(
         smartSessionUseActions(usePermissionsModule),
       );
 
@@ -372,7 +366,7 @@ Note: Paymaster actions and userOperation gas estimation are overridden for comp
         args: [BigInt(value)],
       });
 
-      const userOpHash = await useSmartSessionNexusClient.usePermission({
+      const userOpHash = await useSmartSessionClient.usePermission({
         calls: [
           {
             to: DICE_ROLL_LEDGER_ADDRESS,
@@ -384,7 +378,6 @@ Note: Paymaster actions and userOperation gas estimation are overridden for comp
 
 ## 🔗 Resources
 
-- [Biconomy AbstractJS Documentation](https://docs.biconomy.io/abstractjs)
 - [Rhinestone Module SDK](https://docs.rhinestone.io/)
 - [ERC-7579 Standard Proposal](https://eips.ethereum.org/EIPS/eip-7579)
 - [Viem Documentation](https://viem.sh/)

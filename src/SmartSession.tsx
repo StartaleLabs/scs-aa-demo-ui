@@ -1,13 +1,13 @@
 import {
   type CreateSessionDataParams,
-  type NexusClient,
+  type StartaleAccountClient,
   type SessionData,
   createSmartAccountClient,
   smartSessionCreateActions,
   smartSessionUseActions,
-  toNexusAccount,
+  toStartaleSmartAccount,
   toSmartSessionsValidator,
-} from "@biconomy/abstractjs";
+} from "startale-aa-sdk";
 import {
   SmartSessionMode,
   getSmartSessionsValidator,
@@ -55,12 +55,12 @@ const paymasterClient = createPaymasterClient({
 });
 
 export function SmartSessionSection({
-  nexusClient,
+  startaleClient,
   addLine,
   setLoadingText,
   handleErrors,
 }: {
-  nexusClient: NexusClient;
+  startaleClient: StartaleAccountClient;
   addLine: (line: string, level?: string) => void;
   setLoadingText: (text: string) => void;
   handleErrors: (error: Error, message: string) => void;
@@ -69,10 +69,10 @@ export function SmartSessionSection({
   const [activeSession, setActiveSession] = useState<SessionData | null>(null);
 
   useEffect(() => {
-    if (nexusClient) {
+    if (startaleClient) {
       checkIsSessionModuleInstalled();
     }
-  }, [nexusClient?.account?.address]);
+  }, [startaleClient?.account?.address]);
 
   useEffect(() => {
     if (!isSessionModuleInstalled) {
@@ -99,14 +99,14 @@ export function SmartSessionSection({
         console.log("Calling addLine with: ", text.trim(), "important");
         addLine(text.trim(), "important");
       },
-      nexusClient.account.address,
+      startaleClient.account.address,
       "Smart account balance:",
     );
   };
 
   const checkIsSessionModuleInstalled = async () => {
     const sessionsModule = getSmartSessionsValidator({});
-    const isSmartSessionsModuleInstalled = await nexusClient.isModuleInstalled({
+    const isSmartSessionsModuleInstalled = await startaleClient.isModuleInstalled({
       module: sessionsModule,
     });
     if (isSmartSessionsModuleInstalled) {
@@ -119,21 +119,21 @@ export function SmartSessionSection({
 
   const installSmartSessionModule = async () => {
     try {
-      if (!nexusClient) {
-        throw new Error("Nexus client not initialized");
+      if (!startaleClient) {
+        throw new Error("Startale client not initialized");
       }
       const sessionsModule = getSmartSessionsValidator({});
 
       if (!isSessionModuleInstalled) {
         setLoadingText("Installing Smart Sessions module");
         await displayGasOutput();
-        const opHash = await nexusClient.installModule({
+        const opHash = await startaleClient.installModule({
           module: sessionsModule,
         });
 
         console.log("Operation hash: ", opHash);
 
-        const result = await nexusClient.waitForUserOperationReceipt({
+        const result = await startaleClient.waitForUserOperationReceipt({
           hash: opHash,
         });
         console.log("Operation result: ", result.receipt.transactionHash);
@@ -150,8 +150,8 @@ export function SmartSessionSection({
 
   const createSession = async () => {
     try {
-      if (!nexusClient) {
-        throw new Error("Nexus client not initialized");
+      if (!startaleClient) {
+        throw new Error("Startale client not initialized");
       }
 
       if (!isSessionModuleInstalled) {
@@ -167,11 +167,11 @@ export function SmartSessionSection({
       }
       const sessionOwner = privateKeyToAccount(ownerKey as `0x${string}`);
       const sessionsModule = toSmartSessionsValidator({
-        account: nexusClient.account,
+        account: startaleClient.account,
         signer: sessionOwner,
       });
 
-      const nexusSessionClient = nexusClient.extend(smartSessionCreateActions(sessionsModule));
+      const startaleSessionClient = startaleClient.extend(smartSessionCreateActions(sessionsModule));
 
       const selector = toFunctionSelector("writeDiceRoll(uint256)");
       const sessionRequestedInfo: CreateSessionDataParams[] = [
@@ -187,12 +187,12 @@ export function SmartSessionSection({
         },
       ];
 
-      const createSessionsResponse = await nexusSessionClient.grantPermission({
+      const createSessionsResponse = await startaleSessionClient.grantPermission({
         sessionRequestedInfo,
       });
 
       const sessionData: SessionData = {
-        granter: nexusClient.account.address,
+        granter: startaleClient.account.address,
         description: `Session to increment a counter for ${DICE_ROLL_LEDGER_ADDRESS}`,
         sessionPublicKey: sessionOwner.address,
         moduleData: {
@@ -203,7 +203,7 @@ export function SmartSessionSection({
         },
       };
 
-      const result = await nexusClient.waitForUserOperationReceipt({
+      const result = await startaleClient.waitForUserOperationReceipt({
         hash: createSessionsResponse.userOpHash,
       });
 
@@ -228,10 +228,10 @@ export function SmartSessionSection({
         throw new Error("No active session found");
       }
       const isEnabled = await isSessionEnabled({
-        client: nexusClient.account.client as PublicClient,
+        client: startaleClient.account.client as PublicClient,
         account: {
-          type: "nexus",
-          address: nexusClient.account.address,
+          type: "erc7579-implementation",
+          address: startaleClient.account.address,
           deployedOnChains: [chain.id],
         },
         permissionId: activeSession.moduleData.permissionIds[0],
@@ -240,8 +240,8 @@ export function SmartSessionSection({
 
       const ownerKey = localStorage.getItem("sessionOwnerKey") as `0x${string}`;
       const sessionOwner = privateKeyToAccount(ownerKey);
-      const smartSessionNexusClient = createSmartAccountClient({
-        account: await toNexusAccount({
+      const smartSessionStartaleClient = createSmartAccountClient({
+        account: await toStartaleSmartAccount({
           signer: sessionOwner,
           accountAddress: activeSession.granter,
           chain: chain,
@@ -276,12 +276,12 @@ export function SmartSessionSection({
       });
 
       const usePermissionsModule = toSmartSessionsValidator({
-        account: smartSessionNexusClient.account,
+        account: smartSessionStartaleClient.account,
         signer: sessionOwner,
         moduleData: activeSession.moduleData,
       });
 
-      const useSmartSessionNexusClient = smartSessionNexusClient.extend(
+      const useSmartSessionStartaleClient = smartSessionStartaleClient.extend(
         smartSessionUseActions(usePermissionsModule),
       );
 
@@ -293,7 +293,7 @@ export function SmartSessionSection({
       addLine(`Your roll: ${value}`);
       setLoadingText("Writing result to chain");
       await displayGasOutput();
-      const userOpHash = await useSmartSessionNexusClient.usePermission({
+      const userOpHash = await useSmartSessionStartaleClient.usePermission({
         calls: [
           {
             to: DICE_ROLL_LEDGER_ADDRESS,
@@ -310,7 +310,7 @@ export function SmartSessionSection({
         address: DICE_ROLL_LEDGER_ADDRESS,
         abi: DiceRollLedgerAbi,
         functionName: "getAllRolls",
-        args: [nexusClient.account.address],
+        args: [startaleClient.account.address],
       })) as number[];
 
       setLoadingText("");
