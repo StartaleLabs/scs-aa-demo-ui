@@ -17,7 +17,7 @@
     PAYMASTER_SERVICE_URL,
   } = AA_CONFIG;
   
-  const scsContext = { calculateGasLimits: true, policyId: "sudo" };
+  const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" };
   
   const chain = soneiumMinato;
   
@@ -122,7 +122,7 @@
           signer: walletClient, 
           chain: chain,
           transport: http(),
-          index: BigInt(8889999110910),
+          index: BigInt(8890910),
       });
   
       console.log("startaleAccountInstance", startaleAccountInstance);

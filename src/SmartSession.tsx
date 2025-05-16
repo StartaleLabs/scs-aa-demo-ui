@@ -36,7 +36,7 @@ import { AA_CONFIG } from "./config";
 import { gasOutput } from "./gasOutput";
 const { MINATO_RPC, BUNDLER_URL, PAYMASTER_SERVICE_URL, DICE_ROLL_LEDGER_ADDRESS } = AA_CONFIG;
 
-const scsContext = { calculateGasLimits: true, policyId: "sudo" };
+const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" };
 
 const chain = soneiumMinato;
 

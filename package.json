@@ -20,7 +20,7 @@
     "react": "^19.0.0",
     "react-dice-roll": "^1.2.2",
     "react-dom": "^19.0.0",
-    "startale-aa-sdk": "^0.0.12",
+    "startale-aa-sdk": "=0.0.12",
     "viem": "^2.28.1",
     "wagmi": "^2.14.11"
   },
