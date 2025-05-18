@@ -123,6 +123,7 @@ export function SmartSessionSection({
         throw new Error("Startale client not initialized");
       }
       const sessionsModule = getSmartSessionsValidator({});
+      // console.log("sessionsModule ", sessionsModule)
 
       if (!isSessionModuleInstalled) {
         setLoadingText("Installing Smart Sessions module");
@@ -143,8 +144,8 @@ export function SmartSessionSection({
         setLoadingText("");
       }
     } catch (error) {
-      console.error("Error creating session", error);
-      handleErrors(error as Error, "Error creating session");
+      console.error("Error installing a module", error);
+      handleErrors(error as Error, "Error installing a module");
     }
   };
 
@@ -260,6 +261,8 @@ export function SmartSessionSection({
           async getPaymasterStubData(pmStubDataParams: GetPaymasterDataParameters) {
             const paymasterStubResponse =
               await paymasterClient.getPaymasterStubData(pmStubDataParams);
+            paymasterStubResponse.paymasterPostOpGasLimit = BigInt(100000);
+            paymasterStubResponse.paymasterVerificationGasLimit = BigInt(200000);
             return paymasterStubResponse;
           },
         },

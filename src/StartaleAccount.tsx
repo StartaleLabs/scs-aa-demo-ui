@@ -122,7 +122,7 @@
           signer: walletClient, 
           chain: chain,
           transport: http(),
-          index: BigInt(8890910),
+          index: BigInt(80660),
       });
   
       console.log("startaleAccountInstance", startaleAccountInstance);
@@ -147,6 +147,8 @@
             async getPaymasterStubData(pmStubDataParams: GetPaymasterDataParameters) {
               const paymasterStubResponse =
                 await paymasterClient.getPaymasterStubData(pmStubDataParams);
+              paymasterStubResponse.paymasterPostOpGasLimit = BigInt(100000);
+              paymasterStubResponse.paymasterVerificationGasLimit = BigInt(200000);
               return paymasterStubResponse;
             },
           },
