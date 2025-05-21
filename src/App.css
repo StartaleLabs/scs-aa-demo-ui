@@ -159,3 +159,40 @@
   width: 50px;
   flex: 0;
 }
+
+
+.tabs {
+  display: flex;
+  flex-direction: row;
+  border-bottom: 1px solid #334E68;
+  margin-bottom: 1rem;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+.tab {
+  padding: 0.5rem 1rem;
+  border-left: 1px solid #334E68;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.87);
+  background: none;
+  font-weight: bold;
+border-radius: 0;
+
+}
+
+.tab:last-child {
+  border-right: 1px solid #334E68;
+}
+
+.tab.active {
+  border-bottom: 2px solid #00ff00;
+  outline: none;
+
+}
+
+.tab:focus,
+.tab:focus-visible {
+  outline: none;
+  box-shadow: none;
+}

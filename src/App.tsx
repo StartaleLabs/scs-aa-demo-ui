@@ -1,6 +1,6 @@
 import "./App.css";
 import { useLogin, useLogout, usePrivy } from "@privy-io/react-auth";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import startaleLogo from "../public/startale_logo.webp";
 import { Output } from "./Output";
@@ -33,7 +33,12 @@ function App() {
   );
 };
 
+  const [selectedTab, setSelectedTab] = useState<"contract" | "recovery" | "session">("contract");
 
+  function handleTabChange(tab: "contract" | "recovery" | "session") {
+    clearLines();
+    setSelectedTab(tab);
+  }
   return (
     <div className="wrapper">
       <div className="header">
@@ -61,16 +66,46 @@ function App() {
       <div className="content">
         <div className="input">
           {startaleAccount && startaleClient && (
-            <div>
-              <SocialRecoverySection
-                startaleClient={startaleClient as any}
-                handleErrors={handleErrors}
-              />
-              <SmartSessionSection
-                startaleClient={startaleClient as any}
-                handleErrors={handleErrors}
-              />
-            </div>
+            <>
+              <div className="tabs">
+                <button
+                  className={selectedTab === "contract" ? "tab active" : "tab"}
+                  onClick={() => handleTabChange("contract")}
+                  type="button"
+                >
+                  Contract Interaction
+                </button>
+                <button
+                  className={selectedTab === "recovery" ? "tab active" : "tab"}
+                  onClick={() => handleTabChange("recovery")}
+                  type="button"
+                >
+                  Social Recovery
+                </button>
+                <button
+                  className={selectedTab === "session" ? "tab active" : "tab"}
+                  onClick={() => handleTabChange("session")}
+                  type="button"
+                >
+                  Sessions
+                </button>
+              </div>
+              <div className="tab-content">
+                {selectedTab === "contract" && <div>Contract interaction section coming soon.</div>}
+                {selectedTab === "recovery" && (
+                  <SocialRecoverySection
+                    startaleClient={startaleClient as any}
+                    handleErrors={handleErrors}
+                  />
+                )}
+                {selectedTab === "session" && (
+                  <SmartSessionSection
+                    startaleClient={startaleClient as any}
+                    handleErrors={handleErrors}
+                  />
+                )}
+              </div>
+            </>
           )}
         </div>
         <Output />
