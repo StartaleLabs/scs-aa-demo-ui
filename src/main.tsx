@@ -7,8 +7,8 @@ import { WagmiProvider } from "wagmi";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { soneiumMinato } from "viem/chains";
 import App from "./App.tsx";
-import { OutputProvider } from "./OutputProvider.tsx";
 import { config } from "./config.ts";
+import { OutputProvider } from "./providers/OutputProvider.tsx";
 
 const root = document.getElementById("root") as HTMLElement;
 const queryClient = new QueryClient();

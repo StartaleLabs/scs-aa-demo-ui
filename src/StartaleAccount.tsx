@@ -12,10 +12,10 @@
   import { type GetPaymasterDataParameters, createPaymasterClient } from "viem/account-abstraction";
   import { soneiumMinato } from "viem/chains";
   import { http } from "wagmi";
-  import { useOutput } from "./OutputProvider";
   import { SmartSessionSection } from "./SmartSession";
   import { SocialRecoverySection } from "./SocialRecovery";
   import { AA_CONFIG } from "./config";
+  import { useOutput } from "./providers/OutputProvider";
 
   const { MINATO_RPC, BUNDLER_URL, PAYMASTER_SERVICE_URL } = AA_CONFIG;
 
@@ -37,7 +37,7 @@
     const { wallets } = useWallets();
     const [startaleAccount, setStartaleAccount] = useState<StartaleSmartAccount>();
     const [startaleClient, setStartaleClient] = useState<StartaleAccountClient>();
-    const { addLine, clearLines, setLoadingText } = useOutput();
+    const { addLine, clearLines, setLoadingText, setSmartAccountAddress } = useOutput();
 
     const didLogout = useRef(false);
 
@@ -76,7 +76,7 @@
 
     useEffect(() => {
       if (startaleAccount) {
-        addLine(`Startale account created: ${startaleAccount.address}`);
+        setSmartAccountAddress(startaleAccount.address);
         initClient();
       }
     }, [startaleAccount]);

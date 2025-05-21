@@ -1,9 +1,16 @@
 import { useEffect, useState } from "react";
-import { useOutput } from "./OutputProvider";
+import { useOutput } from "./providers/OutputProvider";
 
 export function Output() {
   const [loadingDots, setLoadingDots] = useState("");
-  const { lines, loadingText } = useOutput();
+  const {
+    lines,
+    loadingText,
+    connectedAddress,
+    smartAccountAddress,
+    isSessionsModuleInstalled,
+    isRecoveryModuleInstalled,
+  } = useOutput();
 
   useEffect(() => {
     if (!loadingText) {
@@ -22,6 +29,20 @@ export function Output() {
 
   return (
     <div className="output">
+      <div className="line">
+        <strong>Connected EOA address: </strong> {connectedAddress}
+      </div>
+      <div className="line">
+        <strong>Smart Account address: </strong> {smartAccountAddress}
+      </div>
+      <div className="line">
+        <strong>Sessions module: </strong>{" "}
+        {isSessionsModuleInstalled ? "Installed" : "Not installed"}
+      </div>
+      <div className="line">
+        <strong>Recovery module: </strong>{" "}
+        {isRecoveryModuleInstalled ? "Installed" : "Not installed"}
+      </div>
       {lines.map((line, index) => (
         <div key={`line-${index}`} className={`line ${line[1]}`}>
           {line[0]}

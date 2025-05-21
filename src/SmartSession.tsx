@@ -30,11 +30,11 @@ import {
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
-import { useOutput } from "./OutputProvider";
 import { Section } from "./Section";
 import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
 import { AA_CONFIG } from "./config";
 import { gasOutput } from "./gasOutput";
+import { useOutput } from "./providers/OutputProvider";
 const { MINATO_RPC, BUNDLER_URL, PAYMASTER_SERVICE_URL, DICE_ROLL_LEDGER_ADDRESS } = AA_CONFIG;
 
 const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" };
@@ -62,10 +62,9 @@ export function SmartSessionSection({
   startaleClient: StartaleAccountClient;
   handleErrors: (error: Error, message: string) => void;
 }) {
-  const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
   const [activeSession, setActiveSession] = useState<SessionData | null>(null);
-  const { addLine, setLoadingText } = useOutput();
-
+  const { addLine, setLoadingText, isSessionsModuleInstalled, setIsSessionsModuleInstalled } =
+    useOutput();
   useEffect(() => {
     if (startaleClient) {
       checkIsSessionModuleInstalled();
@@ -73,14 +72,14 @@ export function SmartSessionSection({
   }, [startaleClient?.account?.address]);
 
   useEffect(() => {
-    if (!isSessionModuleInstalled) {
+    if (!isSessionsModuleInstalled) {
       return;
     }
     const cachedSessionData = localStorage.getItem("smartSessionData");
     if (cachedSessionData) {
       setActiveSession(JSON.parse(cachedSessionData));
     }
-  }, [isSessionModuleInstalled]);
+  }, [isSessionsModuleInstalled]);
 
   useEffect(() => {
     if (activeSession) {
@@ -108,11 +107,8 @@ export function SmartSessionSection({
       module: sessionsModule,
     });
     if (isSmartSessionsModuleInstalled) {
-      addLine("Smart Sessions module already installed");
-    } else {
-      addLine("Smart Sessions module not installed");
+      setIsSessionsModuleInstalled(true);
     }
-    setIsSessionModuleInstalled(isSmartSessionsModuleInstalled);
   };
 
   const installSmartSessionModule = async () => {
@@ -123,7 +119,7 @@ export function SmartSessionSection({
       const sessionsModule = getSmartSessionsValidator({});
       // console.log("sessionsModule ", sessionsModule)
 
-      if (!isSessionModuleInstalled) {
+      if (!isSessionsModuleInstalled) {
         setLoadingText("Installing Smart Sessions module");
         await displayGasOutput();
         const opHash = await startaleClient.installModule({
@@ -138,7 +134,7 @@ export function SmartSessionSection({
         console.log("Operation result: ", result.receipt.transactionHash);
         addLine("Smart Sessions module installed successfully");
         await displayGasOutput();
-        setIsSessionModuleInstalled(true);
+        setIsSessionsModuleInstalled(true);
         setLoadingText("");
       }
     } catch (error) {
@@ -153,7 +149,7 @@ export function SmartSessionSection({
         throw new Error("Startale client not initialized");
       }
 
-      if (!isSessionModuleInstalled) {
+      if (!isSessionsModuleInstalled) {
         await installSmartSessionModule();
       }
 

@@ -1,24 +1,22 @@
 import "./App.css";
 import { useLogin, useLogout, usePrivy } from "@privy-io/react-auth";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useAccount } from "wagmi";
 import startaleLogo from "../public/startale_logo.webp";
 import { Output } from "./Output";
-import { useOutput } from "./OutputProvider";
 import { SmartAccount } from "./StartaleAccount";
+import { useOutput } from "./providers/OutputProvider";
 
 function App() {
-  const [loadingText, setLoadingText] = useState("");
   const { isConnected, address } = useAccount();
   const { login } = useLogin();
   const { ready, authenticated, user } = usePrivy();
   const { logout } = useLogout();
-  const { addLine, clearLines } = useOutput();
-
+  const { clearLines, setConnectedAddress } = useOutput();
 
   useEffect(() => {
     clearLines();
-    if (isConnected && address) addLine(`Connected with address: ${address}`);
+    if (isConnected && address) setConnectedAddress(address);
   }, [address]);
 
   const isLoginDisabled = !ready;

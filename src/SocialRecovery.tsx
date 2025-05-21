@@ -4,11 +4,11 @@ import type { StartaleAccountClient } from "startale-aa-sdk";
 import { createPublicClient, encodeFunctionData } from "viem";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
-import { useOutput } from "./OutputProvider";
 import { Section } from "./Section";
 import { SocialRecoveryAbi } from "./abi/SocialRecovery";
 import { AA_CONFIG } from "./config";
 import { gasOutput } from "./gasOutput";
+import { useOutput } from "./providers/OutputProvider";
 const { MINATO_RPC, ACCOUNT_RECOVERY_MODULE_ADDRESS } = AA_CONFIG;
 
 const chain = soneiumMinato;
@@ -25,10 +25,10 @@ export function SocialRecoverySection({
   startaleClient: StartaleAccountClient;
   handleErrors: (error: Error, message: string) => void;
 }) {
-  const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
   const [guardians, setGuardians] = useState<`0x${string}`[]>([]);
   const [guardian, setGuardian] = useState<`0x${string}` | "">("");
-  const { addLine, setLoadingText } = useOutput();
+  const { addLine, setLoadingText, isRecoveryModuleInstalled, setIsRecoveryModuleInstalled } =
+    useOutput();
 
   useEffect(() => {
     if (startaleClient) {
@@ -66,7 +66,6 @@ export function SocialRecoverySection({
 
     if (recoveryModuleInstalled) {
       await getGuardians();
-      addLine("Recovery Module already installed.");
     } else {
       setGuardians([]);
     }
