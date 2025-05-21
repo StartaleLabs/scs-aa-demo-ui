@@ -1,20 +1,20 @@
 import {
-  type CreateSessionDataParams,
-  type StartaleAccountClient,
-  type SessionData,
-  createSmartAccountClient,
-  smartSessionCreateActions,
-  smartSessionUseActions,
-  toStartaleSmartAccount,
-  toSmartSessionsValidator,
-} from "startale-aa-sdk";
-import {
   SmartSessionMode,
   getSmartSessionsValidator,
   isSessionEnabled,
 } from "@rhinestone/module-sdk";
 import { useEffect, useState } from "react";
 import Dice from "react-dice-roll";
+import {
+  type CreateSessionDataParams,
+  type SessionData,
+  type StartaleAccountClient,
+  createSmartAccountClient,
+  smartSessionCreateActions,
+  smartSessionUseActions,
+  toSmartSessionsValidator,
+  toStartaleSmartAccount,
+} from "startale-aa-sdk";
 import {
   type PublicClient,
   createPublicClient,
@@ -30,6 +30,7 @@ import {
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
+import { useOutput } from "./OutputProvider";
 import { Section } from "./Section";
 import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
 import { AA_CONFIG } from "./config";
@@ -56,17 +57,14 @@ const paymasterClient = createPaymasterClient({
 
 export function SmartSessionSection({
   startaleClient,
-  addLine,
-  setLoadingText,
   handleErrors,
 }: {
   startaleClient: StartaleAccountClient;
-  addLine: (line: string, level?: string) => void;
-  setLoadingText: (text: string) => void;
   handleErrors: (error: Error, message: string) => void;
 }) {
   const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
   const [activeSession, setActiveSession] = useState<SessionData | null>(null);
+  const { addLine, setLoadingText } = useOutput();
 
   useEffect(() => {
     if (startaleClient) {
@@ -96,8 +94,8 @@ export function SmartSessionSection({
     await gasOutput(
       (text) => {
         console.log("got text: ", text);
-        console.log("Calling addLine with: ", text.trim(), "important");
-        addLine(text.trim(), "important");
+        console.log("Calling addLine with: ", text.trim(), "info");
+        addLine(text.trim(), "info");
       },
       startaleClient.account.address,
       "Smart account balance:",
@@ -172,7 +170,9 @@ export function SmartSessionSection({
         signer: sessionOwner,
       });
 
-      const startaleSessionClient = startaleClient.extend(smartSessionCreateActions(sessionsModule));
+      const startaleSessionClient = startaleClient.extend(
+        smartSessionCreateActions(sessionsModule),
+      );
 
       const selector = toFunctionSelector("writeDiceRoll(uint256)");
       const sessionRequestedInfo: CreateSessionDataParams[] = [

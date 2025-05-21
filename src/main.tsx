@@ -7,6 +7,7 @@ import { WagmiProvider } from "wagmi";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { soneiumMinato } from "viem/chains";
 import App from "./App.tsx";
+import { OutputProvider } from "./OutputProvider.tsx";
 import { config } from "./config.ts";
 
 const root = document.getElementById("root") as HTMLElement;
@@ -34,7 +35,9 @@ createRoot(root).render(
     >
       <WagmiProvider config={config}>
         <QueryClientProvider client={queryClient}>
-          <App />
+          <OutputProvider>
+            <App />
+          </OutputProvider>
         </QueryClientProvider>
       </WagmiProvider>
     </PrivyProvider>

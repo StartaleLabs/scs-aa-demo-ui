@@ -1,9 +1,10 @@
-import type { StartaleAccountClient } from "startale-aa-sdk";
 import { type Module, getSocialRecoveryValidator } from "@rhinestone/module-sdk";
 import { useEffect, useState } from "react";
+import type { StartaleAccountClient } from "startale-aa-sdk";
 import { createPublicClient, encodeFunctionData } from "viem";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
+import { useOutput } from "./OutputProvider";
 import { Section } from "./Section";
 import { SocialRecoveryAbi } from "./abi/SocialRecovery";
 import { AA_CONFIG } from "./config";
@@ -19,18 +20,15 @@ const publicClient = createPublicClient({
 
 export function SocialRecoverySection({
   startaleClient,
-  addLine,
-  setLoadingText,
   handleErrors,
 }: {
   startaleClient: StartaleAccountClient;
-  addLine: (line: string, level?: string) => void;
-  setLoadingText: (text: string) => void;
   handleErrors: (error: Error, message: string) => void;
 }) {
   const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
   const [guardians, setGuardians] = useState<`0x${string}`[]>([]);
   const [guardian, setGuardian] = useState<`0x${string}` | "">("");
+  const { addLine, setLoadingText } = useOutput();
 
   useEffect(() => {
     if (startaleClient) {
@@ -43,7 +41,7 @@ export function SocialRecoverySection({
       (text) => {
         console.log("got text: ", text);
         console.log("Calling addLine with: ", text.trim(), "important");
-        addLine(text.trim(), "important");
+        addLine(text.trim(), "warning");
       },
       startaleClient.account.address,
       "Smart account balance:",

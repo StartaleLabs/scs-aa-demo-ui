@@ -1,27 +1,9 @@
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import { useEffect, useState } from "react";
+import { useOutput } from "./OutputProvider";
 
-export type OutputHandle = {
-  addLine: (newLine: string, level?: string) => void;
-  clearLines: () => void;
-};
-
-type OutputProps = {
-  loadingText?: string; // Controls the loading animation externally
-};
-
-export const Output = forwardRef<OutputHandle, OutputProps>(({ loadingText }, ref) => {
-  const [lines, setLines] = useState<[string,string][]>([]);
+export function Output() {
   const [loadingDots, setLoadingDots] = useState("");
-  // Expose the addLine function to the parent component
-  useImperativeHandle(ref, () => ({
-    addLine: (newLine: string, level?: string) => {
-      console.log(newLine, level);
-      setLines((prevLines) => [...prevLines, [newLine, level || "info"]]);
-    },
-    clearLines: () => {
-      setLines([]);
-    },
-  }));
+  const { lines, loadingText } = useOutput();
 
   useEffect(() => {
     if (!loadingText) {
@@ -53,4 +35,4 @@ export const Output = forwardRef<OutputHandle, OutputProps>(({ loadingText }, re
       )}
     </div>
   );
-});
+}

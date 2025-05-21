@@ -1,29 +1,24 @@
 import "./App.css";
 import { useLogin, useLogout, usePrivy } from "@privy-io/react-auth";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import startaleLogo from "../public/startale_logo.webp";
+import { Output } from "./Output";
+import { useOutput } from "./OutputProvider";
 import { SmartAccount } from "./StartaleAccount";
-import { Output, type OutputHandle } from "./Output";
 
 function App() {
   const [loadingText, setLoadingText] = useState("");
-  const outputRef = useRef<OutputHandle | null>(null);
   const { isConnected, address } = useAccount();
   const { login } = useLogin();
   const { ready, authenticated, user } = usePrivy();
   const { logout } = useLogout();
-  const handleAddLine = (line: string, level?: string) => {
-    outputRef.current?.addLine(`> ${line}`, level);
-  };
+  const { addLine, clearLines } = useOutput();
 
-  const handleClearLines = () => {
-    outputRef.current?.clearLines();
-  };
 
   useEffect(() => {
-    handleClearLines();
-    if (isConnected && address) handleAddLine(`Connected with address: ${address}`);
+    clearLines();
+    if (isConnected && address) addLine(`Connected with address: ${address}`);
   }, [address]);
 
   const isLoginDisabled = !ready;
@@ -54,12 +49,8 @@ function App() {
         </div>
       </div>
       <div className="content">
-        <SmartAccount
-          addLine={handleAddLine}
-          setLoadingText={setLoadingText}
-          clearLines={handleClearLines}
-        />
-        <Output ref={outputRef} loadingText={loadingText} />
+        <SmartAccount />
+        <Output />
       </div>
     </div>
   );
