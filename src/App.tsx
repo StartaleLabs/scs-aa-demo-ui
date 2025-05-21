@@ -4,16 +4,18 @@ import { useEffect } from "react";
 import { useAccount } from "wagmi";
 import startaleLogo from "../public/startale_logo.webp";
 import { Output } from "./Output";
-import { SmartAccount } from "./StartaleAccount";
+import { SmartSessionSection } from "./SmartSession";
+import { SocialRecoverySection } from "./SocialRecovery";
 import { useOutput } from "./providers/OutputProvider";
+import { useStartale } from "./providers/StartaleAccountProvider";
 
 function App() {
   const { isConnected, address } = useAccount();
   const { login } = useLogin();
   const { ready, authenticated, user } = usePrivy();
   const { logout } = useLogout();
-  const { clearLines, setConnectedAddress } = useOutput();
-
+  const { clearLines, setConnectedAddress, setLoadingText, addLine } = useOutput();
+  const { startaleAccount, startaleClient } = useStartale();
   useEffect(() => {
     clearLines();
     if (isConnected && address) setConnectedAddress(address);
@@ -21,6 +23,16 @@ function App() {
 
   const isLoginDisabled = !ready;
   const isLoggedIn = authenticated && ready;
+
+ const handleErrors = (error: Error, text?: string) => {
+  setLoadingText("");
+  addLine(text || "Something has gone wrong.");
+  addLine(`Error: ${(error as Error).message}`);
+  addLine(
+    "Please refresh the page, try creating a new session, or create a new smart account instance with a different nonce.",
+  );
+};
+
 
   return (
     <div className="wrapper">
@@ -47,7 +59,20 @@ function App() {
         </div>
       </div>
       <div className="content">
-        <SmartAccount />
+        <div className="input">
+          {startaleAccount && startaleClient && (
+            <div>
+              <SocialRecoverySection
+                startaleClient={startaleClient as any}
+                handleErrors={handleErrors}
+              />
+              <SmartSessionSection
+                startaleClient={startaleClient as any}
+                handleErrors={handleErrors}
+              />
+            </div>
+          )}
+        </div>
         <Output />
       </div>
     </div>
