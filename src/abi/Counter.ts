@@ -1,4 +1,4 @@
-export const Counter = [
+export const CounterAbi = [
   {
     anonymous: false,
     inputs: [

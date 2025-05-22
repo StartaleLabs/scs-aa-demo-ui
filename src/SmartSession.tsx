@@ -35,6 +35,7 @@ import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
 import { AA_CONFIG } from "./config";
 import { gasOutput } from "./gasOutput";
 import { useOutput } from "./providers/OutputProvider";
+import { useStartale } from "./providers/StartaleAccountProvider";
 const { MINATO_RPC, BUNDLER_URL, PAYMASTER_SERVICE_URL, DICE_ROLL_LEDGER_ADDRESS } = AA_CONFIG;
 
 const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" };
@@ -63,13 +64,8 @@ export function SmartSessionSection({
   handleErrors: (error: Error, message: string) => void;
 }) {
   const [activeSession, setActiveSession] = useState<SessionData | null>(null);
-  const { addLine, setLoadingText, isSessionsModuleInstalled, setIsSessionsModuleInstalled } =
-    useOutput();
-  useEffect(() => {
-    if (startaleClient) {
-      checkIsSessionModuleInstalled();
-    }
-  }, [startaleClient?.account?.address]);
+  const { addLine, setLoadingText } = useOutput();
+  const { isSessionsModuleInstalled, checkIsSessionsModuleInstalled } = useStartale();
 
   useEffect(() => {
     if (!isSessionsModuleInstalled) {
@@ -101,16 +97,6 @@ export function SmartSessionSection({
     );
   };
 
-  const checkIsSessionModuleInstalled = async () => {
-    const sessionsModule = getSmartSessionsValidator({});
-    const isSmartSessionsModuleInstalled = await startaleClient.isModuleInstalled({
-      module: sessionsModule,
-    });
-    if (isSmartSessionsModuleInstalled) {
-      setIsSessionsModuleInstalled(true);
-    }
-  };
-
   const installSmartSessionModule = async () => {
     try {
       if (!startaleClient) {
@@ -134,7 +120,7 @@ export function SmartSessionSection({
         console.log("Operation result: ", result.receipt.transactionHash);
         addLine("Smart Sessions module installed successfully");
         await displayGasOutput();
-        setIsSessionsModuleInstalled(true);
+        checkIsSessionsModuleInstalled();
         setLoadingText("");
       }
     } catch (error) {

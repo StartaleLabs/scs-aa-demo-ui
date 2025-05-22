@@ -3,6 +3,7 @@ import { useLogin, useLogout, usePrivy } from "@privy-io/react-auth";
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import startaleLogo from "../public/startale_logo.webp";
+import { ContractInteraction } from "./ContractInteraction";
 import { Output } from "./Output";
 import { SmartSessionSection } from "./SmartSession";
 import { SocialRecoverySection } from "./SocialRecovery";
@@ -15,7 +16,7 @@ function App() {
   const { ready, authenticated, user } = usePrivy();
   const { logout } = useLogout();
   const { clearLines, setConnectedAddress, setLoadingText, addLine } = useOutput();
-  const { startaleAccount, startaleClient } = useStartale();
+  const { startaleAccount, startaleClient, logout: startaleLogout } = useStartale();
   useEffect(() => {
     clearLines();
     if (isConnected && address) setConnectedAddress(address);
@@ -33,6 +34,15 @@ function App() {
   );
 };
 
+const handleLogout = () => {
+  clearLines();
+  setLoadingText("");
+  setConnectedAddress("");
+  addLine("Logging out...");
+  startaleLogout();
+  logout();
+};
+
   const [selectedTab, setSelectedTab] = useState<"contract" | "recovery" | "session">("contract");
 
   function handleTabChange(tab: "contract" | "recovery" | "session") {
@@ -47,7 +57,7 @@ function App() {
           {isLoggedIn ? (
             <>
               <span>{user?.email ? user.email.address : ""}</span>
-              <button type="button" className="connect-button" onClick={() => logout()}>
+              <button type="button" className="connect-button" onClick={() => handleLogout()}>
                 Logout
               </button>
             </>
@@ -65,7 +75,7 @@ function App() {
       </div>
       <div className="content">
         <div className="input">
-          {startaleAccount && startaleClient && (
+          {isLoggedIn && startaleAccount && startaleClient && (
             <>
               <div className="tabs">
                 <button
@@ -91,7 +101,7 @@ function App() {
                 </button>
               </div>
               <div className="tab-content">
-                {selectedTab === "contract" && <div>Contract interaction section coming soon.</div>}
+                {selectedTab === "contract" && <ContractInteraction />}
                 {selectedTab === "recovery" && (
                   <SocialRecoverySection
                     startaleClient={startaleClient as any}

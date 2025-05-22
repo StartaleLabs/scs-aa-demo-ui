@@ -1,4 +1,4 @@
-import { type Module, getSocialRecoveryValidator } from "@rhinestone/module-sdk";
+import { getSocialRecoveryValidator } from "@rhinestone/module-sdk";
 import { useEffect, useState } from "react";
 import type { StartaleAccountClient } from "startale-aa-sdk";
 import { createPublicClient, encodeFunctionData } from "viem";
@@ -9,6 +9,7 @@ import { SocialRecoveryAbi } from "./abi/SocialRecovery";
 import { AA_CONFIG } from "./config";
 import { gasOutput } from "./gasOutput";
 import { useOutput } from "./providers/OutputProvider";
+import { useStartale } from "./providers/StartaleAccountProvider";
 const { MINATO_RPC, ACCOUNT_RECOVERY_MODULE_ADDRESS } = AA_CONFIG;
 
 const chain = soneiumMinato;
@@ -27,9 +28,8 @@ export function SocialRecoverySection({
 }) {
   const [guardians, setGuardians] = useState<`0x${string}`[]>([]);
   const [guardian, setGuardian] = useState<`0x${string}` | "">("");
-  const { addLine, setLoadingText, isRecoveryModuleInstalled, setIsRecoveryModuleInstalled } =
-    useOutput();
-
+  const { addLine, setLoadingText } = useOutput();
+  const { checkIsRecoveryModuleInstalled, isRecoveryModuleInstalled } = useStartale();
   useEffect(() => {
     if (startaleClient) {
       checkIsRecoveryModuleInstalled();
@@ -48,30 +48,13 @@ export function SocialRecoverySection({
     );
   };
 
-  const checkIsRecoveryModuleInstalled = async () => {
-    // Social recovery module
-    const socialRecoveryModule: Module = {
-      address: ACCOUNT_RECOVERY_MODULE_ADDRESS,
-      module: ACCOUNT_RECOVERY_MODULE_ADDRESS,
-      initData: "0x",
-      deInitData: "0x",
-      type: "validator",
-      additionalContext: "0x",
-    };
-    console.log("Social Recovery Module: ", socialRecoveryModule);
-
-    const recoveryModuleInstalled = await startaleClient.isModuleInstalled({
-      module: socialRecoveryModule,
-    });
-
-    if (recoveryModuleInstalled) {
-      await getGuardians();
+  useEffect(() => {
+    if (isRecoveryModuleInstalled) {
+      getGuardians();
     } else {
       setGuardians([]);
     }
-
-    setIsRecoveryModuleInstalled(recoveryModuleInstalled);
-  };
+  }, [isRecoveryModuleInstalled]);
 
   const getGuardians = async () => {
     const accountGuardians = (await publicClient.readContract({
@@ -155,7 +138,7 @@ export function SocialRecoverySection({
 
       addLine("Recovery Module installed successfully");
       addLine("Guardian added successfully");
-      setIsRecoveryModuleInstalled(true);
+      checkIsRecoveryModuleInstalled();
       await getGuardians();
       setLoadingText("");
     } catch (error) {

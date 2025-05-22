@@ -1,9 +1,11 @@
 import { usePrivy, useWallets } from "@privy-io/react-auth";
+import type { Module } from "@rhinestone/module-sdk";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
   type StartaleAccountClient,
   type StartaleSmartAccount,
   createSmartAccountClient,
+  getSmartSessionsValidator,
   toStartaleSmartAccount,
 } from "startale-aa-sdk";
 import { http, createPublicClient, createWalletClient, custom } from "viem";
@@ -20,6 +22,11 @@ const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded
 export const StartaleContext = createContext<{
   startaleAccount?: StartaleSmartAccount;
   startaleClient?: StartaleAccountClient;
+  logout: () => void;
+  isRecoveryModuleInstalled: boolean;
+  checkIsRecoveryModuleInstalled: () => Promise<void>;
+  isSessionsModuleInstalled: boolean;
+  checkIsSessionsModuleInstalled: () => Promise<void>;
 } | null>(null);
 
 export function useStartale() {
@@ -35,6 +42,8 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
 
   const [startaleAccount, setStartaleAccount] = useState<StartaleSmartAccount>();
   const [startaleClient, setStartaleClient] = useState<StartaleAccountClient>();
+  const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
+  const [isSessionsModuleInstalled, setIsSessionsModuleInstalled] = useState(false);
   const didLogout = useRef(false);
 
   useEffect(() => {
@@ -57,6 +66,14 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
 
   const cleanUp = () => {
     clearLines();
+  };
+
+  const logout = () => {
+    clearLines();
+    setStartaleAccount(undefined);
+    setStartaleClient(undefined);
+    setSmartAccountAddress("");
+    setLoadingText("");
   };
 
   const getSmartAccountInstance = async () => {
@@ -115,8 +132,49 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+const checkIsRecoveryModuleInstalled = async () => {
+    if (!startaleClient) return;
+    // Social recovery module
+    const socialRecoveryModule: Module = {
+      address: AA_CONFIG.ACCOUNT_RECOVERY_MODULE_ADDRESS,
+      module: AA_CONFIG.ACCOUNT_RECOVERY_MODULE_ADDRESS,
+      initData: "0x",
+      deInitData: "0x",
+      type: "validator",
+      additionalContext: "0x",
+    };
+    console.log("Social Recovery Module: ", socialRecoveryModule);
+
+    const recoveryModuleInstalled = await startaleClient.isModuleInstalled({
+      module: socialRecoveryModule,
+    });
+
+    setIsRecoveryModuleInstalled(recoveryModuleInstalled);
+  };
+
+  const checkIsSessionsModuleInstalled = async () => {
+    if (!startaleClient) return;
+    const sessionsModule = getSmartSessionsValidator({});
+    const isSmartSessionsModuleInstalled = await startaleClient.isModuleInstalled({
+      module: sessionsModule,
+    });
+    if (isSmartSessionsModuleInstalled) {
+      setIsSessionsModuleInstalled(true);
+    }
+  };
+
   return (
-    <StartaleContext.Provider value={{ startaleAccount, startaleClient }}>
+    <StartaleContext.Provider
+      value={{
+        startaleAccount,
+        startaleClient,
+        isRecoveryModuleInstalled,
+        checkIsRecoveryModuleInstalled,
+        isSessionsModuleInstalled,
+        checkIsSessionsModuleInstalled,
+        logout,
+      }}
+    >
       {children}
     </StartaleContext.Provider>
   );

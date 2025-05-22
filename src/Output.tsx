@@ -30,7 +30,7 @@ export function Output() {
   return (
     <div className="output">
       <div className="line">
-        <strong>Connected EOA address: </strong> {connectedAddress}
+        <strong>Connected signer address: </strong> {connectedAddress}
       </div>
       <div className="line">
         <strong>Smart Account address: </strong> {smartAccountAddress}
@@ -45,7 +45,20 @@ export function Output() {
       </div>
       {lines.map((line, index) => (
         <div key={`line-${index}`} className={`line ${line[1]}`}>
-          {line[0]}
+          {line[0].split(/(0x[a-fA-F0-9]{64})/g).map((part, i) =>
+            /^0x[a-fA-F0-9]{64}$/.test(part) ? (
+              <a
+                key={`hash-${i}`}
+                href={`https://soneium-minato.blockscout.com/op/${part}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {part}
+              </a>
+            ) : (
+              <span key={`text-${i}`}>{part}</span>
+            ),
+          )}
         </div>
       ))}
       {loadingText && (
