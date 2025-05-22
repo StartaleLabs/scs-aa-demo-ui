@@ -12,18 +12,12 @@ type OutputContextType = {
   setConnectedAddress: (address: string | undefined) => void;
   smartAccountAddress: string | undefined;
   setSmartAccountAddress: (address: string | undefined) => void;
-  isSessionsModuleInstalled: boolean;
-  setIsSessionsModuleInstalled: (installed: boolean) => void;
-  isRecoveryModuleInstalled: boolean;
-  setIsRecoveryModuleInstalled: (installed: boolean) => void;
 };
 const OutputContext = createContext<OutputContextType | undefined>(undefined);
 
 export function OutputProvider({ children }: { children: React.ReactNode }) {
   const [connectedAddress, setConnectedAddress] = useState<string | undefined>(undefined);
   const [smartAccountAddress, setSmartAccountAddress] = useState<string | undefined>(undefined);
-  const [isSessionsModuleInstalled, setIsSessionsModuleInstalled] = useState(false);
-  const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
   const [lines, setLines] = useState<OutputLine[]>([]);
   const [loadingText, setLoadingText] = useState<string>("");
 
@@ -45,10 +39,6 @@ export function OutputProvider({ children }: { children: React.ReactNode }) {
     setConnectedAddress,
     smartAccountAddress,
     setSmartAccountAddress,
-    isSessionsModuleInstalled,
-    setIsSessionsModuleInstalled,
-    isRecoveryModuleInstalled,
-    setIsRecoveryModuleInstalled,
   };
 
   return <OutputContext.Provider value={value}>{children}</OutputContext.Provider>;

@@ -30,11 +30,6 @@ export function SocialRecoverySection({
   const [guardian, setGuardian] = useState<`0x${string}` | "">("");
   const { addLine, setLoadingText } = useOutput();
   const { checkIsRecoveryModuleInstalled, isRecoveryModuleInstalled } = useStartale();
-  useEffect(() => {
-    if (startaleClient) {
-      checkIsRecoveryModuleInstalled();
-    }
-  }, [startaleClient?.account?.address]);
 
   const displayGasOutput = async () => {
     await gasOutput(
@@ -138,7 +133,7 @@ export function SocialRecoverySection({
 
       addLine("Recovery Module installed successfully");
       addLine("Guardian added successfully");
-      checkIsRecoveryModuleInstalled();
+      await checkIsRecoveryModuleInstalled();
       await getGuardians();
       setLoadingText("");
     } catch (error) {

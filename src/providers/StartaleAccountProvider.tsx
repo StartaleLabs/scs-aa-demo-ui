@@ -64,6 +64,15 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
     getSmartAccountInstance();
   }, [wallets[0]?.address, authenticated]);
 
+  useEffect(() => {
+    const checkModules = async () => {
+      if (!startaleClient) return;
+      await checkIsRecoveryModuleInstalled();
+      await checkIsSessionsModuleInstalled();
+    };
+    checkModules();
+  }, [startaleClient?.account?.address]);
+
   const cleanUp = () => {
     clearLines();
   };
@@ -132,8 +141,12 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-const checkIsRecoveryModuleInstalled = async () => {
+  const checkIsRecoveryModuleInstalled = async () => {
+    console.log("Checking if recovery module is installed");
+    console.log("Current state: ", isRecoveryModuleInstalled);
+    console.log("Startale client: ", startaleClient);
     if (!startaleClient) return;
+    if (isRecoveryModuleInstalled) return;
     // Social recovery module
     const socialRecoveryModule: Module = {
       address: AA_CONFIG.ACCOUNT_RECOVERY_MODULE_ADDRESS,
@@ -144,11 +157,11 @@ const checkIsRecoveryModuleInstalled = async () => {
       additionalContext: "0x",
     };
     console.log("Social Recovery Module: ", socialRecoveryModule);
-
+    console.log("Calling isModuleInstalled");
     const recoveryModuleInstalled = await startaleClient.isModuleInstalled({
       module: socialRecoveryModule,
     });
-
+    console.log("Recovery module installed AAAAA: ", recoveryModuleInstalled);
     setIsRecoveryModuleInstalled(recoveryModuleInstalled);
   };
 

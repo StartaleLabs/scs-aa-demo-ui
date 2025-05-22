@@ -1,17 +1,11 @@
 import { useEffect, useState } from "react";
 import { useOutput } from "./providers/OutputProvider";
+import { useStartale } from "./providers/StartaleAccountProvider";
 
 export function Output() {
   const [loadingDots, setLoadingDots] = useState("");
-  const {
-    lines,
-    loadingText,
-    connectedAddress,
-    smartAccountAddress,
-    isSessionsModuleInstalled,
-    isRecoveryModuleInstalled,
-  } = useOutput();
-
+  const { lines, loadingText, connectedAddress, smartAccountAddress } = useOutput();
+  const { isSessionsModuleInstalled, isRecoveryModuleInstalled } = useStartale();
   useEffect(() => {
     if (!loadingText) {
       setLoadingDots("");
