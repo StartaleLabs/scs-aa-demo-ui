@@ -1,7 +1,6 @@
 import "./App.css";
-import { useLogin, useLogout, usePrivy } from "@privy-io/react-auth";
+import { useLogin, useLogout, usePrivy, useWallets } from "@privy-io/react-auth";
 import { useEffect, useState } from "react";
-import { useAccount } from "wagmi";
 import startaleLogo from "../public/startale_logo.webp";
 import { ContractInteraction } from "./ContractInteraction";
 import { Output } from "./Output";
@@ -11,37 +10,40 @@ import { useOutput } from "./providers/OutputProvider";
 import { useStartale } from "./providers/StartaleAccountProvider";
 
 function App() {
-  const { isConnected, address } = useAccount();
   const { login } = useLogin();
   const { ready, authenticated, user } = usePrivy();
   const { logout } = useLogout();
   const { clearLines, setConnectedAddress, setLoadingText, addLine } = useOutput();
   const { startaleAccount, startaleClient, logout: startaleLogout } = useStartale();
+  const { wallets } = useWallets();
+
   useEffect(() => {
     clearLines();
-    if (isConnected && address) setConnectedAddress(address);
-  }, [address]);
+    if (!authenticated) return;
+    const embeddedWallet = wallets.filter((w) => w.connectorType === "embedded")[0];
+    setConnectedAddress(embeddedWallet?.address || "");
+  }, [wallets]);
 
   const isLoginDisabled = !ready;
   const isLoggedIn = authenticated && ready;
 
- const handleErrors = (error: Error, text?: string) => {
-  setLoadingText("");
-  addLine(text || "Something has gone wrong.");
-  addLine(`Error: ${(error as Error).message}`);
-  addLine(
-    "Please refresh the page, try creating a new session, or create a new smart account instance with a different nonce.",
-  );
-};
+  const handleErrors = (error: Error, text?: string) => {
+    setLoadingText("");
+    addLine(text || "Something has gone wrong.");
+    addLine(`Error: ${(error as Error).message}`);
+    addLine(
+      "Please refresh the page, try creating a new session, or create a new smart account instance with a different nonce.",
+    );
+  };
 
-const handleLogout = () => {
-  clearLines();
-  setLoadingText("");
-  setConnectedAddress("");
-  addLine("Logging out...");
-  startaleLogout();
-  logout();
-};
+  const handleLogout = () => {
+    clearLines();
+    setLoadingText("");
+    setConnectedAddress("");
+    addLine("Logging out...");
+    startaleLogout();
+    logout();
+  };
 
   const [selectedTab, setSelectedTab] = useState<"contract" | "recovery" | "session">("contract");
 
