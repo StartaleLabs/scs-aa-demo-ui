@@ -1,15 +1,16 @@
-  import { createSmartAccountClient, StartaleAccountClient, StartaleSmartAccount, toStartaleSmartAccount } from "startale-aa-sdk";
+  import { createSmartAccountClient, type StartaleAccountClient, type StartaleSmartAccount, toStartaleSmartAccount } from "startale-aa-sdk";
   
-  import { usePrivy, useWallets } from "@privy-io/react-auth";
+  import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
   
   import { useEffect, useRef, useState } from "react";
-  import { createPublicClient, createWalletClient, custom } from "viem";
+  import { createPublicClient } from "viem";
   import { type GetPaymasterDataParameters, createPaymasterClient } from "viem/account-abstraction";
   import { soneiumMinato } from "viem/chains";
   import { http } from "wagmi";
   import { SmartSessionSection } from "./SmartSession";
   import { SocialRecoverySection } from "./SocialRecovery";
   import { AA_CONFIG } from "./config";
+import { isEthereumWallet } from "@dynamic-labs/ethereum";
   
   const {
     MINATO_RPC,
@@ -39,8 +40,8 @@
     addLine: (line: string, level?: string) => void;
     clearLines: () => void;
   }) {
-    const { authenticated } = usePrivy();
-    const { wallets } = useWallets();
+    const authenticated = useIsLoggedIn();
+    const { primaryWallet, handleLogOut } = useDynamicContext();
     const [startaleAccount, setStartaleAccount] = useState<StartaleSmartAccount>();
     const [startaleClient, setStartaleClient] = useState<StartaleAccountClient>();
   
@@ -63,7 +64,7 @@
       if (!authenticated) {
         return;
       }
-      if (!wallets[0]?.address) {
+      if (!primaryWallet?.address) {
         setStartaleAccount(undefined);
         setStartaleClient(undefined);
         clearLines();
@@ -71,13 +72,7 @@
       }
   
       getSmartAccountInstance();
-    }, [wallets[0]?.address]);
-  
-    useEffect(() => {
-      if (wallets.length > 0) {
-        console.log("wallets", wallets);
-      }
-    }, [wallets]);
+    }, [primaryWallet?.address]);
   
     useEffect(() => {
       if (startaleAccount) {
@@ -111,13 +106,17 @@
     };
   
     const getSmartAccountInstance = async () => {
-      const provider = await wallets[0].getEthereumProvider();
-  
-      const walletClient = createWalletClient({
-        account: wallets[0].address as `0x${string}`,
-        chain: soneiumMinato, // or use `chain` if it's your custom viem chain
-        transport: custom(provider),
-      });
+   
+      if(!primaryWallet || !isEthereumWallet(primaryWallet)) {
+        throw new Error("Primary wallet is not an Ethereum wallet");
+      }
+
+      const walletClient = await primaryWallet.getWalletClient();
+      
+      if(!walletClient) {
+        throw new Error("Wallet client not found");
+      }
+
       const startaleAccountInstance = await toStartaleSmartAccount({
           signer: walletClient, 
           chain: chain,
