@@ -1,8 +1,8 @@
 import "./App.css";
-import { useLogin, useLogout, usePrivy } from "@privy-io/react-auth";
+import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
 import { useEffect, useRef, useState } from "react";
 import { useAccount } from "wagmi";
-import startaleLogo from "../public/startale_logo.webp";
+import startaleLogo from "/startale_logo.webp";
 import { SmartAccount } from "./StartaleAccount";
 import { Output, type OutputHandle } from "./Output";
 
@@ -10,9 +10,8 @@ function App() {
   const [loadingText, setLoadingText] = useState("");
   const outputRef = useRef<OutputHandle | null>(null);
   const { isConnected, address } = useAccount();
-  const { login } = useLogin();
-  const { ready, authenticated, user } = usePrivy();
-  const { logout } = useLogout();
+  const { sdkHasLoaded,setShowAuthFlow, user, handleLogOut } = useDynamicContext();
+  const authenticated = useIsLoggedIn();
   const handleAddLine = (line: string, level?: string) => {
     outputRef.current?.addLine(`> ${line}`, level);
   };
@@ -26,8 +25,8 @@ function App() {
     if (isConnected && address) handleAddLine(`Connected with address: ${address}`);
   }, [address]);
 
-  const isLoginDisabled = !ready;
-  const isLoggedIn = authenticated && ready;
+  const isLoginDisabled = !sdkHasLoaded;
+  const isLoggedIn = authenticated && sdkHasLoaded;
 
   return (
     <div className="wrapper">
@@ -36,8 +35,8 @@ function App() {
         <div className="connect">
           {isLoggedIn ? (
             <>
-              <span>{user?.email ? user.email.address : ""}</span>
-              <button type="button" className="connect-button" onClick={() => logout()}>
+              <span>{user?.email ? user.email : ""}</span>
+              <button type="button" className="connect-button" onClick={() => handleLogOut()}>
                 Logout
               </button>
             </>
@@ -46,7 +45,7 @@ function App() {
               disabled={isLoginDisabled}
               type="button"
               className="connect-button"
-              onClick={() => login()}
+              onClick={() => setShowAuthFlow(true)}
             >
               Login
             </button>
