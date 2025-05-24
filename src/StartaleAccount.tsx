@@ -17,7 +17,7 @@
     PAYMASTER_SERVICE_URL,
   } = AA_CONFIG;
   
-  const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" };
+  const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_managed" };
   
   const chain = soneiumMinato;
   
