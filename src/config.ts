@@ -11,6 +11,8 @@ export const config = getDefaultConfig({
 
 export const AA_CONFIG = {
   MINATO_RPC: "https://rpc.minato.soneium.org",
+  // Todo: Update and get from env
+  // Update with prod bundler url and prod paymaster url and test on minato
   BUNDLER_URL: "https://soneium-minato.dev.bundler.scs.startale.com?apikey=scsadmin",
   PAYMASTER_SERVICE_URL: "https://dev.paymaster.scs.startale.com/v1?apikey=scsadmin-paymaster",
   DICE_ROLL_LEDGER_ADDRESS: "0x298D8873bA2B2879580105b992049201B60c1975" as Address,
