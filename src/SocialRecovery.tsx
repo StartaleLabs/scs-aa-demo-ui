@@ -13,6 +13,7 @@ import {
   createBundlerClient,
   entryPoint07Address,
   getUserOperationHash,
+  toSmartAccount,
 } from "viem/account-abstraction";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
@@ -171,15 +172,16 @@ export function SocialRecoverySection({
         },
       ];
       console.log("Calls to change ECDSA validator owner: ", calls);
-
-      const userOperation = await bundlerClient.prepareUserOperation({
-        account: startaleClient.account,
+const userOpParams = {
+        account: await toSmartAccount(startaleClient.account),
         calls,
         nonce,
         signature: getSocialRecoveryMockSignature({
           threshold: 1,
         }),
-      });
+      };
+      console.log("User operation parameters: ", userOpParams);
+      const userOperation = await bundlerClient.prepareUserOperation(userOpParams);
 
       const userOpHashToSign = getUserOperationHash({
         chainId: chain.id,
