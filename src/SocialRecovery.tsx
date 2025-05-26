@@ -1,15 +1,23 @@
 import { useConnectWallet, useWallets } from "@privy-io/react-auth";
-import { getSocialRecoveryValidator } from "@rhinestone/module-sdk";
-import { useEffect, useMemo, useState } from "react";
 import {
-  type StartaleAccountClient,
-  getAddOwnableValidatorOwnerAction,
-  getRemoveOwnableValidatorOwnerAction,
-} from "startale-aa-sdk";
-import { createPublicClient, encodeFunctionData } from "viem";
+  encodeValidatorNonce,
+  getAccount,
+  getSocialRecoveryMockSignature,
+  getSocialRecoveryValidator,
+} from "@rhinestone/module-sdk";
+import { getAccountNonce } from "permissionless/actions";
+import { use, useEffect, useMemo, useState } from "react";
+import type { StartaleAccountClient } from "startale-aa-sdk";
+import { createPublicClient, encodeFunctionData, encodePacked } from "viem";
+import {
+  createBundlerClient,
+  entryPoint07Address,
+  getUserOperationHash,
+} from "viem/account-abstraction";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
 import { Section } from "./Section";
+import { ECDSAValidatorAbi } from "./abi/ECDSAValidator";
 import { SocialRecoveryAbi } from "./abi/SocialRecovery";
 import { AA_CONFIG } from "./config";
 import { gasOutput } from "./gasOutput";
@@ -24,6 +32,11 @@ const publicClient = createPublicClient({
   chain,
 });
 
+const bundlerClient = createBundlerClient({
+  client: publicClient,
+  transport: http(AA_CONFIG.BUNDLER_URL),
+});
+
 export function SocialRecoverySection({
   startaleClient,
   handleErrors,
@@ -34,7 +47,8 @@ export function SocialRecoverySection({
   const [guardians, setGuardians] = useState<`0x${string}`[]>([]);
   const [guardian, setGuardian] = useState<`0x${string}` | "">("");
   const { addLine, setLoadingText } = useOutput();
-  const { checkIsRecoveryModuleInstalled, isRecoveryModuleInstalled } = useStartale();
+  const { checkIsRecoveryModuleInstalled, isRecoveryModuleInstalled, startaleAccount } =
+    useStartale();
   const { connectWallet } = useConnectWallet();
   const { wallets, ready } = useWallets();
   const displayGasOutput = async () => {
@@ -120,26 +134,86 @@ export function SocialRecoverySection({
     await displayGasOutput();
   };
 
-  const addNewECDSAValidator = async (address: `0x${string}`) => {
+  const changeECDSAValidatorOwner = async (address: `0x${string}`) => {
     if (!address || !isValidEthereumAddress(address)) {
       console.error("Guardian address is required");
       return;
     }
     try {
-      console.log("Adding new ECDSA validator");
-      const addValidatorAction = await getAddOwnableValidatorOwnerAction({
-        account: startaleClient.account,
-        client: startaleClient,
-        owner: address,
+      console.log("Changing ECDSA validator owner");
+
+      const socialRecoveryModule = getSocialRecoveryValidator({
+        guardians: guardians,
+        threshold: 1,
       });
 
-      injectedWallet?.sign(addValidatorAction);
-      console.log("Add validator action: ", addValidatorAction);
+      const nonce = await getAccountNonce(publicClient, {
+        address: startaleClient.account.address,
+        entryPointAddress: startaleAccount?.entryPoint.address as `0x${string}`,
+        key: encodeValidatorNonce({
+          account: getAccount({
+            address: startaleClient.account.address,
+            type: "erc7579-implementation",
+          }),
+          validator: socialRecoveryModule,
+        }),
+      });
+      console.log("Nonce for ECDSA validator: ", nonce);
+      const calls = [
+        {
+          to: AA_CONFIG.ECDSA_VALIDATOR_ADDRESS,
+          value: BigInt(0),
+          data: {
+            abi: ECDSAValidatorAbi,
+            functionName: "transferOwnership",
+            args: [address],
+          },
+        },
+      ];
+      console.log("Calls to change ECDSA validator owner: ", calls);
+
+      const userOperation = await bundlerClient.prepareUserOperation({
+        account: startaleClient.account,
+        calls,
+        nonce,
+        signature: getSocialRecoveryMockSignature({
+          threshold: 1,
+        }),
+      });
+
+      const userOpHashToSign = getUserOperationHash({
+        chainId: chain.id,
+        entryPointAddress: entryPoint07Address,
+        entryPointVersion: "0.7",
+        userOperation,
+      });
+
+      console.log("User operation hash to sign: ", userOpHashToSign);
+
+      if (!injectedWallet || injectedWallet.address !== address) {
+        console.error("Injected wallet not found or does not match the guardian address");
+        return;
+      }
+      const signature = await injectedWallet.sign(userOpHashToSign);
+
+      userOperation.signature = encodePacked(["bytes"], [signature as `0x${string}`]);
+      console.log("User operation with signature: ", userOperation);
+
+      const userOpHash = await startaleClient.sendUserOperation(userOperation);
+
+      const receipt = await startaleClient.waitForUserOperationReceipt({
+        hash: userOpHash,
+      });
+
+      console.log("User operation receipt: ", receipt);
+      addLine("ECDSA validator owner changed successfully");
+      setLoadingText("");
     } catch (error) {
-      console.error("Error adding new ECDSA validator", error);
-      handleErrors(error as Error, "Error adding new ECDSA validator");
+      console.error("Error changing ECDSA validator owner", error);
+      handleErrors(error as Error, "Error changing ECDSA validator owner");
     }
   };
+
   const installRecoveryModule = async (address: `0x${string}`) => {
     if (!address || !isValidEthereumAddress(address)) {
       console.error("Guardian address is required");
@@ -217,6 +291,7 @@ export function SocialRecoverySection({
       console.error("Error connecting wallet", error);
     }
   };
+
   return (
     <>
       <Section title="Connect your wallet">
@@ -307,7 +382,7 @@ export function SocialRecoverySection({
         <button
           type="button"
           onClick={() => {
-            addNewECDSAValidator(guardian as `0x${string}`);
+            changeECDSAValidatorOwner(guardian as `0x${string}`);
           }}
         >
           Recover Account
