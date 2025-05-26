@@ -1,6 +1,6 @@
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import type { Module } from "@rhinestone/module-sdk";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   type StartaleAccountClient,
   type StartaleSmartAccount,
@@ -46,6 +46,10 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
   const [isSessionsModuleInstalled, setIsSessionsModuleInstalled] = useState(false);
   const didLogout = useRef(false);
 
+  const embeddedWallet = useMemo(() => {
+    return wallets.find((w) => w.connectorType === "embedded");
+  }, [wallets]);
+
   useEffect(() => {
     if (!authenticated && !didLogout.current) {
       cleanUp();
@@ -86,9 +90,13 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getSmartAccountInstance = async () => {
-    const provider = await wallets[0].getEthereumProvider();
+    if (!embeddedWallet) {
+      addLine("No embedded wallet found");
+      return;
+    }
+    const provider = await embeddedWallet.getEthereumProvider();
     const walletClient = createWalletClient({
-      account: wallets[0].address as `0x${string}`,
+      account: embeddedWallet.address as `0x${string}`,
       chain,
       transport: custom(provider),
     });
@@ -132,6 +140,7 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
         },
       });
       setStartaleClient(client);
+      client.signMessage;
       addLine("Startale account client instantiated");
     } catch (err) {
       console.error("Client init failed", err);

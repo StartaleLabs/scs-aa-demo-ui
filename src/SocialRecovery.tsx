@@ -1,6 +1,11 @@
+import { useConnectWallet, useWallets } from "@privy-io/react-auth";
 import { getSocialRecoveryValidator } from "@rhinestone/module-sdk";
-import { useEffect, useState } from "react";
-import type { StartaleAccountClient } from "startale-aa-sdk";
+import { useEffect, useMemo, useState } from "react";
+import {
+  type StartaleAccountClient,
+  getAddOwnableValidatorOwnerAction,
+  getRemoveOwnableValidatorOwnerAction,
+} from "startale-aa-sdk";
 import { createPublicClient, encodeFunctionData } from "viem";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
@@ -30,7 +35,8 @@ export function SocialRecoverySection({
   const [guardian, setGuardian] = useState<`0x${string}` | "">("");
   const { addLine, setLoadingText } = useOutput();
   const { checkIsRecoveryModuleInstalled, isRecoveryModuleInstalled } = useStartale();
-
+  const { connectWallet } = useConnectWallet();
+  const { wallets, ready } = useWallets();
   const displayGasOutput = async () => {
     await gasOutput(
       (text) => {
@@ -51,6 +57,10 @@ export function SocialRecoverySection({
     }
   }, [isRecoveryModuleInstalled]);
 
+  const injectedWallet = useMemo(() => {
+    return wallets.find((w) => w.connectorType === "injected");
+  }, [wallets]);
+
   const getGuardians = async () => {
     const accountGuardians = (await publicClient.readContract({
       address: ACCOUNT_RECOVERY_MODULE_ADDRESS,
@@ -62,15 +72,15 @@ export function SocialRecoverySection({
     setGuardians(accountGuardians);
   };
 
-  const handleAddNewGuardian = async () => {
+  const handleAddNewGuardian = async (address?: `0x${string}`) => {
     try {
       if (!startaleClient) {
         throw new Error("Startale client not initialized");
       }
       if (!isRecoveryModuleInstalled) {
-        await installRecoveryModule();
+        await installRecoveryModule(address || (guardian as `0x${string}`));
       } else {
-        await addNewGuardianToExisting();
+        await addNewGuardianToExisting(address || (guardian as `0x${string}`));
       }
     } catch (error) {
       console.error("Error adding new guardian", error);
@@ -78,7 +88,7 @@ export function SocialRecoverySection({
     }
   };
 
-  const addNewGuardianToExisting = async () => {
+  const addNewGuardianToExisting = async (address: `0x${string}`) => {
     setLoadingText("Adding guardian");
 
     await displayGasOutput();
@@ -90,7 +100,7 @@ export function SocialRecoverySection({
         data: encodeFunctionData({
           abi: SocialRecoveryAbi,
           functionName: "addGuardian",
-          args: [guardian],
+          args: [address],
         }),
       },
     ];
@@ -110,14 +120,34 @@ export function SocialRecoverySection({
     await displayGasOutput();
   };
 
-  const installRecoveryModule = async () => {
-    if (!guardian || !isValidEthereumAddress(guardian)) {
+  const addNewECDSAValidator = async (address: `0x${string}`) => {
+    if (!address || !isValidEthereumAddress(address)) {
+      console.error("Guardian address is required");
+      return;
+    }
+    try {
+      console.log("Adding new ECDSA validator");
+      const addValidatorAction = await getAddOwnableValidatorOwnerAction({
+        account: startaleClient.account,
+        client: startaleClient,
+        owner: address,
+      });
+
+      injectedWallet?.sign(addValidatorAction);
+      console.log("Add validator action: ", addValidatorAction);
+    } catch (error) {
+      console.error("Error adding new ECDSA validator", error);
+      handleErrors(error as Error, "Error adding new ECDSA validator");
+    }
+  };
+  const installRecoveryModule = async (address: `0x${string}`) => {
+    if (!address || !isValidEthereumAddress(address)) {
       console.error("Guardian address is required");
       return;
     }
     try {
       const socialRecoveryModule = getSocialRecoveryValidator({
-        guardians: [guardian as `0x${string}`],
+        guardians: [address],
         threshold: 1,
       });
 
@@ -179,46 +209,111 @@ export function SocialRecoverySection({
     await getGuardians();
   };
 
+  const connectExternalWallet = async () => {
+    try {
+      const wallet = await connectWallet();
+      console.log("Connected wallet: ", wallet);
+    } catch (error) {
+      console.error("Error connecting wallet", error);
+    }
+  };
   return (
-    <Section title="Add guardians for social recovery">
-      {guardians.length > 0 && <div>Guardians:</div>}
-      <div className="inputGroup">
-        {guardians.map((guardian, index) => (
-          <div className="guardianWrapper" key={`guardian_${index}`}>
-            <div>{guardian}</div>
-            <button
-              type="button"
-              onClick={() => {
-                handleRemoveGuardian(guardian);
-              }}
-            >
-              X
+    <>
+      <Section title="Connect your wallet">
+        <div>
+          <p>Connect an external wallet or add the address manually to act as a guardian.</p>
+          {injectedWallet ? (
+            <>
+              <p>Injected wallet detected: {injectedWallet.address}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  handleAddNewGuardian(injectedWallet.address as `0x${string}`);
+                }}
+              >
+                Add as guardian
+              </button>
+            </>
+          ) : (
+            <button onClick={connectExternalWallet} type="button" disabled={!ready}>
+              connect
             </button>
-          </div>
-        ))}
+          )}
+        </div>
+      </Section>
+      <Section title="Manually add guardians">
+        {guardians.length > 0 && <div>Guardians:</div>}
         <div className="inputGroup">
-          <div className="addressInput">
-            <label htmlFor="guardian">New address:</label>
-            <input
-              name="guardian"
-              type="text"
-              value={guardian}
-              onChange={(e) => setGuardian(e.target.value as `0x${string}`)}
-            />
+          {guardians.map((guardian, index) => (
+            <div className="guardianWrapper" key={`guardian_${index}`}>
+              <div>{guardian}</div>
+              <button
+                type="button"
+                onClick={() => {
+                  handleRemoveGuardian(guardian);
+                }}
+              >
+                X
+              </button>
+            </div>
+          ))}
+          <div className="inputGroup">
+            <div className="addressInput">
+              <label htmlFor="guardian">New address:</label>
+              <input
+                name="guardian"
+                type="text"
+                value={guardian}
+                onChange={(e) => setGuardian(e.target.value as `0x${string}`)}
+              />
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (guardian) {
+                handleAddNewGuardian();
+              }
+            }}
+          >
+            Add Guardian
+          </button>
+        </div>
+      </Section>
+      <Section title="Recover account">
+        <p>To recover your account, you need to provide the address of one of your guardians.</p>
+        <div className="inputGroup">
+          <label htmlFor="guardian">Guardian address:</label>
+          <select
+            name="guardian"
+            value={guardian}
+            onChange={(e) => {
+              const selectedGuardian = e.target.value as `0x${string}`;
+              if (isValidEthereumAddress(selectedGuardian)) {
+                setGuardian(selectedGuardian);
+              } else {
+                setGuardian("");
+              }
+            }}
+          >
+            <option value="">Select a guardian</option>
+            {guardians.map((guardian, index) => (
+              <option key={`guardian_${index}`} value={guardian}>
+                {guardian}
+              </option>
+            ))}
+          </select>
         </div>
         <button
           type="button"
           onClick={() => {
-            if (guardian) {
-              handleAddNewGuardian();
-            }
+            addNewECDSAValidator(guardian as `0x${string}`);
           }}
         >
-          Add Guardian
+          Recover Account
         </button>
-      </div>
-    </Section>
+      </Section>
+    </>
   );
 }
 
