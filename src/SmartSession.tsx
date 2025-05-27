@@ -47,7 +47,6 @@ const bundlerClient = createBundlerClient({
   transport: http(BUNDLER_URL),
 });
 
-
 export function SmartSessionSection({
   startaleClient,
   handleErrors,
@@ -213,10 +212,10 @@ export function SmartSessionSection({
       });
       console.log("is session Enabled", isEnabled);
 
-      const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" }
+      const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" };
 
       const scsPaymasterClient = createSCSPaymasterClient({
-        transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any
+        transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any,
       });
 
       const ownerKey = localStorage.getItem("sessionOwnerKey") as `0x${string}`;
