@@ -23,11 +23,7 @@ import {
   stringify,
   toFunctionSelector,
 } from "viem";
-import {
-  type GetPaymasterDataParameters,
-  createBundlerClient,
-  createPaymasterClient,
-} from "viem/account-abstraction";
+import { createBundlerClient } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
@@ -37,9 +33,7 @@ import { AA_CONFIG } from "./config";
 import { gasOutput } from "./gasOutput";
 import { useOutput } from "./providers/OutputProvider";
 import { useStartale } from "./providers/StartaleAccountProvider";
-const { MINATO_RPC, BUNDLER_URL, PAYMASTER_SERVICE_URL, DICE_ROLL_LEDGER_ADDRESS } = AA_CONFIG;
-
-const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" };
+const { MINATO_RPC, BUNDLER_URL, DICE_ROLL_LEDGER_ADDRESS } = AA_CONFIG;
 
 const chain = soneiumMinato;
 
@@ -53,9 +47,6 @@ const bundlerClient = createBundlerClient({
   transport: http(BUNDLER_URL),
 });
 
-const paymasterClient = createPaymasterClient({
-  transport: http(PAYMASTER_SERVICE_URL),
-});
 
 export function SmartSessionSection({
   startaleClient,
