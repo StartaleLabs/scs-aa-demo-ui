@@ -104,7 +104,7 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
       signer: walletClient,
       chain,
       transport: http(),
-      index: BigInt(80660),
+      index: BigInt(81060),
     });
     setStartaleAccount(instance);
     setSmartAccountAddress(instance.address);
@@ -117,6 +117,7 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
         account,
         transport: http(AA_CONFIG.BUNDLER_URL),
         client: publicClient,
+        // Todo: Remove hardcoded values
         paymaster: {
           async getPaymasterData(params: GetPaymasterDataParameters) {
             params.paymasterPostOpGasLimit = BigInt(100000);

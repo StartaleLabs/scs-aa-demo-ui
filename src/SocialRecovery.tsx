@@ -2,6 +2,7 @@ import { useConnectWallet, useWallets } from "@privy-io/react-auth";
 import {
   encodeValidatorNonce,
   getAccount,
+  getSetOwnableValidatorThresholdAction,
   getSocialRecoveryMockSignature,
   getSocialRecoveryValidator,
 } from "@rhinestone/module-sdk";
@@ -154,26 +155,30 @@ export function SocialRecoverySection({
         key: encodeValidatorNonce({
           account: getAccount({
             address: startaleClient.account.address,
-            type: "erc7579-implementation",
+            type: "nexus", // update: review
           }),
           validator: socialRecoveryModule,
         }),
       });
       console.log("Nonce for ECDSA validator: ", nonce);
+      const transferOwnershipData = encodeFunctionData({
+        abi: ECDSAValidatorAbi,
+        functionName: "transferOwnership",
+        args: [address],
+      });
       const calls = [
         {
           to: AA_CONFIG.ECDSA_VALIDATOR_ADDRESS,
+          target: AA_CONFIG.ECDSA_VALIDATOR_ADDRESS,
           value: BigInt(0),
-          data: {
-            abi: ECDSAValidatorAbi,
-            functionName: "transferOwnership",
-            args: [address],
-          },
+          data: transferOwnershipData,
+          callData: transferOwnershipData,
         },
       ];
       console.log("Calls to change ECDSA validator owner: ", calls);
-const userOpParams = {
-        account: await toSmartAccount(startaleClient.account),
+
+      const userOpParams = {
+        account: startaleClient.account,
         calls,
         nonce,
         signature: getSocialRecoveryMockSignature({
@@ -181,7 +186,9 @@ const userOpParams = {
         }),
       };
       console.log("User operation parameters: ", userOpParams);
-      const userOperation = await bundlerClient.prepareUserOperation(userOpParams);
+      const userOperation = await startaleClient.prepareUserOperation(userOpParams);
+
+      // RevieW: Fix currently fails with AA23
 
       const userOpHashToSign = getUserOperationHash({
         chainId: chain.id,
@@ -191,6 +198,8 @@ const userOpParams = {
       });
 
       console.log("User operation hash to sign: ", userOpHashToSign);
+
+      // Note: This should be signed by the guardian/s
 
       if (!injectedWallet || injectedWallet.address !== address) {
         console.error("Injected wallet not found or does not match the guardian address");
