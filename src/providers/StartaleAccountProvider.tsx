@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import {
   type StartaleAccountClient,
   type StartaleSmartAccount,
+  createSCSPaymasterClient,
   createSmartAccountClient,
   getSmartSessionsValidator,
   toStartaleSmartAccount,
@@ -104,12 +105,18 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
       signer: walletClient,
       chain,
       transport: http(),
-      index: BigInt(81060),
+      index: BigInt(813367),
     });
     setStartaleAccount(instance);
     setSmartAccountAddress(instance.address);
     await initClient(instance);
   };
+
+  const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_managed" }
+
+  const scsPaymasterClient = createSCSPaymasterClient({
+    transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any
+  });
 
   const initClient = async (account: StartaleSmartAccount) => {
     try {
@@ -117,28 +124,8 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
         account,
         transport: http(AA_CONFIG.BUNDLER_URL),
         client: publicClient,
-        // Todo: Remove hardcoded values
-        paymaster: {
-          async getPaymasterData(params: GetPaymasterDataParameters) {
-            params.paymasterPostOpGasLimit = BigInt(100000);
-            params.paymasterVerificationGasLimit = BigInt(200000);
-            params.verificationGasLimit = BigInt(500000);
-            return paymasterClient.getPaymasterData(params);
-          },
-          async getPaymasterStubData(params: GetPaymasterDataParameters) {
-            const stub = await paymasterClient.getPaymasterStubData(params);
-            stub.paymasterPostOpGasLimit = BigInt(100000);
-            stub.paymasterVerificationGasLimit = BigInt(200000);
-            return stub;
-          },
-        },
+        paymaster: scsPaymasterClient,
         paymasterContext: scsContext,
-        userOperation: {
-          estimateFeesPerGas: async () => ({
-            maxFeePerGas: BigInt(10000000),
-            maxPriorityFeePerGas: BigInt(10000000),
-          }),
-        },
       });
       setStartaleClient(client);
       client.signMessage;

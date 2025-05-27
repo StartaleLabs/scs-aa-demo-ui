@@ -9,6 +9,7 @@ import {
   type CreateSessionDataParams,
   type SessionData,
   type StartaleAccountClient,
+  createSCSPaymasterClient,
   createSmartAccountClient,
   smartSessionCreateActions,
   smartSessionUseActions,
@@ -221,6 +222,12 @@ export function SmartSessionSection({
       });
       console.log("is session Enabled", isEnabled);
 
+      const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" }
+
+      const scsPaymasterClient = createSCSPaymasterClient({
+        transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any
+      });
+
       const ownerKey = localStorage.getItem("sessionOwnerKey") as `0x${string}`;
       const sessionOwner = privateKeyToAccount(ownerKey);
       const smartSessionStartaleClient = createSmartAccountClient({
@@ -232,31 +239,8 @@ export function SmartSessionSection({
         }),
         transport: http(BUNDLER_URL),
         client: publicClient,
-        paymaster: {
-          async getPaymasterData(pmDataParams: GetPaymasterDataParameters) {
-            pmDataParams.paymasterPostOpGasLimit = BigInt(100000);
-            pmDataParams.paymasterVerificationGasLimit = BigInt(200000);
-            pmDataParams.verificationGasLimit = BigInt(500000);
-            const paymasterResponse = await paymasterClient.getPaymasterData(pmDataParams);
-            return paymasterResponse;
-          },
-          async getPaymasterStubData(pmStubDataParams: GetPaymasterDataParameters) {
-            const paymasterStubResponse =
-              await paymasterClient.getPaymasterStubData(pmStubDataParams);
-            paymasterStubResponse.paymasterPostOpGasLimit = BigInt(100000);
-            paymasterStubResponse.paymasterVerificationGasLimit = BigInt(200000);
-            return paymasterStubResponse;
-          },
-        },
+        paymaster: scsPaymasterClient,
         paymasterContext: scsContext,
-        userOperation: {
-          estimateFeesPerGas: async () => {
-            return {
-              maxFeePerGas: BigInt(10000000),
-              maxPriorityFeePerGas: BigInt(10000000),
-            };
-          },
-        },
         mock: true,
       });
 

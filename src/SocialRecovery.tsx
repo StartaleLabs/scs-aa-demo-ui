@@ -149,18 +149,32 @@ export function SocialRecoverySection({
         threshold: 1,
       });
 
-      const nonce = await getAccountNonce(publicClient, {
-        address: startaleClient.account.address,
-        entryPointAddress: startaleAccount?.entryPoint.address as `0x${string}`,
-        key: encodeValidatorNonce({
-          account: getAccount({
-            address: startaleClient.account.address,
-            type: "nexus", // update: review
-          }),
-          validator: socialRecoveryModule,
-        }),
+     // Avoid..
+     // const nonce = await getAccountNonce(publicClient, {
+      //   address: startaleClient.account.address,
+      //   entryPointAddress: startaleAccount?.entryPoint.address as `0x${string}`,
+      //   key: encodeValidatorNonce({
+      //     account: getAccount({
+      //       address: startaleClient.account.address,
+      //       type: "nexus", // update: review
+      //     }),
+      //     validator: socialRecoveryModule,
+      //   }),
+      // });
+
+      // Todo: Fix and use in proper way
+      // This is done to be able to use sdk native helper getNonce for active validator as social recovery
+      // But it may conflict with other things since singer is not passed and it's not properly converted toValidator module.
+      startaleClient.account.setModule(socialRecoveryModule as any);
+
+      // Now it uses internal helper
+      const nonceNew = await startaleClient.account.getNonce({
       });
-      console.log("Nonce for ECDSA validator: ", nonce);
+
+      console.log("Nonce for ECDSA validator: (fixed)", nonceNew);
+
+
+      // console.log("Nonce for ECDSA validator (permissionless way): ", nonce);
       const transferOwnershipData = encodeFunctionData({
         abi: ECDSAValidatorAbi,
         functionName: "transferOwnership",
@@ -180,7 +194,7 @@ export function SocialRecoverySection({
       const userOpParams = {
         account: startaleClient.account,
         calls,
-        nonce,
+        nonce: nonceNew,
         signature: getSocialRecoveryMockSignature({
           threshold: 1,
         }),
@@ -207,11 +221,22 @@ export function SocialRecoverySection({
       }
       const signature = await injectedWallet.sign(userOpHashToSign);
 
-      userOperation.signature = encodePacked(["bytes"], [signature as `0x${string}`]);
+      const finalSig = encodePacked(
+        Array(1).fill('bytes'),
+        Array(1).fill(signature),
+      )
+
+      userOperation.signature = finalSig;
       console.log("User operation with signature: ", userOperation);
 
+      // Check if anything changes in this route..cause so far we already have paymaster sig 
+      // if sendUserOperation call changes anything or tries to sign it again using active module it could cause problems
+      // ideally we could just append signature then make sendSignedUserOperation call or send using rpc eth_sendUserOperation directly (refer to userop-examples repo)
+      // Todo: need to find neat ways and test more.
       const userOpHash = await startaleClient.sendUserOperation(userOperation);
 
+      // Lastest failure simulation:
+      // https://dashboard.tenderly.co/livingrock7/project/simulator/b0c33852-4323-43c2-ad90-dc73dcbf4d37/debugger
       const receipt = await startaleClient.waitForUserOperationReceipt({
         hash: userOpHash,
       });
@@ -235,6 +260,8 @@ export function SocialRecoverySection({
         guardians: [address],
         threshold: 1,
       });
+
+      console.log("Social recovery module: ", socialRecoveryModule);
 
       setLoadingText("Installing recovery module and adding guardian");
 
