@@ -1,21 +1,9 @@
 import { useConnectWallet, useWallets } from "@privy-io/react-auth";
-import {
-  encodeValidatorNonce,
-  getAccount,
-  getSetOwnableValidatorThresholdAction,
-  getSocialRecoveryMockSignature,
-  getSocialRecoveryValidator,
-} from "@rhinestone/module-sdk";
-import { getAccountNonce } from "permissionless/actions";
-import { use, useEffect, useMemo, useState } from "react";
+import { getSocialRecoveryMockSignature, getSocialRecoveryValidator } from "@rhinestone/module-sdk";
+import { useEffect, useMemo, useState } from "react";
 import type { StartaleAccountClient } from "startale-aa-sdk";
 import { createPublicClient, encodeFunctionData, encodePacked } from "viem";
-import {
-  createBundlerClient,
-  entryPoint07Address,
-  getUserOperationHash,
-  toSmartAccount,
-} from "viem/account-abstraction";
+import { entryPoint07Address, getUserOperationHash } from "viem/account-abstraction";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
 import { Section } from "./Section";
@@ -34,11 +22,6 @@ const publicClient = createPublicClient({
   chain,
 });
 
-const bundlerClient = createBundlerClient({
-  client: publicClient,
-  transport: http(AA_CONFIG.BUNDLER_URL),
-});
-
 export function SocialRecoverySection({
   startaleClient,
   handleErrors,
@@ -49,8 +32,7 @@ export function SocialRecoverySection({
   const [guardians, setGuardians] = useState<`0x${string}`[]>([]);
   const [guardian, setGuardian] = useState<`0x${string}` | "">("");
   const { addLine, setLoadingText } = useOutput();
-  const { checkIsRecoveryModuleInstalled, isRecoveryModuleInstalled, startaleAccount } =
-    useStartale();
+  const { checkIsRecoveryModuleInstalled, isRecoveryModuleInstalled } = useStartale();
   const { connectWallet } = useConnectWallet();
   const { wallets, ready } = useWallets();
   const displayGasOutput = async () => {
@@ -149,37 +131,22 @@ export function SocialRecoverySection({
         threshold: 1,
       });
 
-     // Avoid..
-     // const nonce = await getAccountNonce(publicClient, {
-      //   address: startaleClient.account.address,
-      //   entryPointAddress: startaleAccount?.entryPoint.address as `0x${string}`,
-      //   key: encodeValidatorNonce({
-      //     account: getAccount({
-      //       address: startaleClient.account.address,
-      //       type: "nexus", // update: review
-      //     }),
-      //     validator: socialRecoveryModule,
-      //   }),
-      // });
-
       // Todo: Fix and use in proper way
       // This is done to be able to use sdk native helper getNonce for active validator as social recovery
       // But it may conflict with other things since singer is not passed and it's not properly converted toValidator module.
       startaleClient.account.setModule(socialRecoveryModule as any);
 
       // Now it uses internal helper
-      const nonceNew = await startaleClient.account.getNonce({
-      });
+      const nonceNew = await startaleClient.account.getNonce({});
 
       console.log("Nonce for ECDSA validator: (fixed)", nonceNew);
 
-
-      // console.log("Nonce for ECDSA validator (permissionless way): ", nonce);
       const transferOwnershipData = encodeFunctionData({
         abi: ECDSAValidatorAbi,
         functionName: "transferOwnership",
         args: [address],
       });
+
       const calls = [
         {
           to: AA_CONFIG.ECDSA_VALIDATOR_ADDRESS,
@@ -229,7 +196,7 @@ export function SocialRecoverySection({
       userOperation.signature = finalSig;
       console.log("User operation with signature: ", userOperation);
 
-      // Check if anything changes in this route..cause so far we already have paymaster sig 
+      // Check if anything changes in this route..cause so far we already have paymaster sig
       // if sendUserOperation call changes anything or tries to sign it again using active module it could cause problems
       // ideally we could just append signature then make sendSignedUserOperation call or send using rpc eth_sendUserOperation directly (refer to userop-examples repo)
       // Todo: need to find neat ways and test more.
