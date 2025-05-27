@@ -4,11 +4,9 @@ import "./index.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
 
-import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
+import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
 import { DynamicWagmiConnector } from '@dynamic-labs/wagmi-connector';
-
-import { soneiumMinato } from "viem/chains";
 
 import App from "./App.tsx";
 import { config } from "./config.ts";
@@ -20,8 +18,8 @@ createRoot(root).render(
   <StrictMode>
     <DynamicContextProvider
       settings={{
-        environmentId: "f0b977d0-b712-49f1-af89-2a24c47674da",
-        walletConnectors: [EthereumWalletConnectors]
+        environmentId: "0d1b1dd7-e4f9-44dc-992c-408fa880f097",
+        walletConnectors: [EthereumWalletConnectors],
       }}
     >
       <WagmiProvider config={config}>
