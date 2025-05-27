@@ -1,28 +1,11 @@
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import { useEffect, useState } from "react";
+import { useOutput } from "./providers/OutputProvider";
+import { useStartale } from "./providers/StartaleAccountProvider";
 
-export type OutputHandle = {
-  addLine: (newLine: string, level?: string) => void;
-  clearLines: () => void;
-};
-
-type OutputProps = {
-  loadingText?: string; // Controls the loading animation externally
-};
-
-export const Output = forwardRef<OutputHandle, OutputProps>(({ loadingText }, ref) => {
-  const [lines, setLines] = useState<[string,string][]>([]);
+export function Output() {
   const [loadingDots, setLoadingDots] = useState("");
-  // Expose the addLine function to the parent component
-  useImperativeHandle(ref, () => ({
-    addLine: (newLine: string, level?: string) => {
-      console.log(newLine, level);
-      setLines((prevLines) => [...prevLines, [newLine, level || "info"]]);
-    },
-    clearLines: () => {
-      setLines([]);
-    },
-  }));
-
+  const { lines, loadingText, connectedAddress, smartAccountAddress } = useOutput();
+  const { isSessionsModuleInstalled, isRecoveryModuleInstalled } = useStartale();
   useEffect(() => {
     if (!loadingText) {
       setLoadingDots("");
@@ -40,9 +23,36 @@ export const Output = forwardRef<OutputHandle, OutputProps>(({ loadingText }, re
 
   return (
     <div className="output">
+      <div className="line">
+        <strong>Connected signer address: </strong> {connectedAddress}
+      </div>
+      <div className="line">
+        <strong>Smart Account address: </strong> {smartAccountAddress}
+      </div>
+      <div className="line">
+        <strong>Sessions module: </strong>{" "}
+        {isSessionsModuleInstalled ? "Installed" : "Not installed"}
+      </div>
+      <div className="line">
+        <strong>Recovery module: </strong>{" "}
+        {isRecoveryModuleInstalled ? "Installed" : "Not installed"}
+      </div>
       {lines.map((line, index) => (
         <div key={`line-${index}`} className={`line ${line[1]}`}>
-          {line[0]}
+          {line[0].split(/(0x[a-fA-F0-9]{64})/g).map((part, i) =>
+            /^0x[a-fA-F0-9]{64}$/.test(part) ? (
+              <a
+                key={`hash-${i}`}
+                href={`https://soneium-minato.blockscout.com/op/${part}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {part}
+              </a>
+            ) : (
+              <span key={`text-${i}`}>{part}</span>
+            ),
+          )}
         </div>
       ))}
       {loadingText && (
@@ -53,4 +63,4 @@ export const Output = forwardRef<OutputHandle, OutputProps>(({ loadingText }, re
       )}
     </div>
   );
-});
+}

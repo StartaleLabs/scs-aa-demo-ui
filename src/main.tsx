@@ -8,6 +8,8 @@ import { PrivyProvider } from "@privy-io/react-auth";
 import { soneiumMinato } from "viem/chains";
 import App from "./App.tsx";
 import { config } from "./config.ts";
+import { OutputProvider } from "./providers/OutputProvider.tsx";
+import { StartaleProvider } from "./providers/StartaleAccountProvider.tsx";
 
 const root = document.getElementById("root") as HTMLElement;
 const queryClient = new QueryClient();
@@ -34,7 +36,11 @@ createRoot(root).render(
     >
       <WagmiProvider config={config}>
         <QueryClientProvider client={queryClient}>
-          <App />
+          <OutputProvider>
+            <StartaleProvider>
+              <App />
+            </StartaleProvider>
+          </OutputProvider>
         </QueryClientProvider>
       </WagmiProvider>
     </PrivyProvider>
