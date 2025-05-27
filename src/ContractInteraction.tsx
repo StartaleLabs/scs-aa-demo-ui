@@ -106,9 +106,14 @@ export function ContractInteraction() {
 
   return (
     <div className="contractForm">
-      <div>
+      <div className="inputGroup">
         <label htmlFor="contractSelect">Select contract:</label>
-        <select id="contractSelect" value={selectedKey} onChange={handleContractSelection}>
+        <select
+          id="contractSelect"
+          value={selectedKey}
+          onChange={handleContractSelection}
+          className="dropdown"
+        >
           {Object.entries(predefinedContracts).map(([key, { name }]) => (
             <option key={key} value={key}>
               {name}
@@ -119,9 +124,11 @@ export function ContractInteraction() {
 
       {selectedKey !== "none" && (
         <>
-          <div className="addressInput">
+          <div className="inputGroup">
+            <label htmlFor="contractAddress">Contract address:</label>
             <input
               id="contractAddress"
+              className="textInput"
               type="text"
               placeholder="0x..."
               value={contractAddress}
@@ -129,10 +136,11 @@ export function ContractInteraction() {
             />
           </div>
 
-          <div>
+          <div className="inputGroup">
+            <label htmlFor="contractAbi">Contract ABI:</label>
             <textarea
               id="contractAbi"
-              rows={6}
+              rows={12}
               placeholder="Paste ABI JSON here"
               value={contractAbi ? JSON.stringify(contractAbi, null, 2) : ""}
               onChange={(e) => {
@@ -144,20 +152,24 @@ export function ContractInteraction() {
               }}
             />
           </div>
-          <select
-            id="function-select"
-            value={selectedFunction}
-            onChange={(e) => handleFunctionSelection(e.target.value)}
-          >
-            <option value="" disabled>
-              Select function
-            </option>
-            {functionOptions.map((fnName) => (
-              <option key={fnName} value={fnName}>
-                {fnName}
+          <div className="inputGroup">
+            <label htmlFor="function-select">Select function:</label>
+            <select
+              id="function-select"
+              value={selectedFunction}
+              onChange={(e) => handleFunctionSelection(e.target.value)}
+              className="dropdown"
+            >
+              <option value="" disabled>
+                Select function
               </option>
-            ))}
-          </select>
+              {functionOptions.map((fnName) => (
+                <option key={fnName} value={fnName}>
+                  {fnName}
+                </option>
+              ))}
+            </select>
+          </div>
           {selectedFnDef?.type === "function" &&
             "inputs" in selectedFnDef &&
             selectedFnDef.inputs?.map((input, idx) => (
@@ -168,13 +180,14 @@ export function ContractInteraction() {
                 <input
                   id={`arg-${idx}`}
                   type="text"
+                  className="textInput"
                   placeholder={`Enter ${input.type}`}
                   value={functionArgs[input.name || `arg${idx}`] || ""}
                   onChange={(e) => handleArgChange(input.name || `arg${idx}`, e.target.value)}
                 />
               </div>
             ))}
-          <button type="button" onClick={handleSubmit}>
+          <button className="primaryButton" type="button" onClick={handleSubmit}>
             Send User Operation
           </button>
         </>

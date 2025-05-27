@@ -1,7 +1,6 @@
-import "./App.css";
 import { useLogin, useLogout, usePrivy, useWallets } from "@privy-io/react-auth";
 import { useEffect, useState } from "react";
-import startaleLogo from "../public/startale_logo.webp";
+import startaleLogo from "../public/scs_logo.svg";
 import { ContractInteraction } from "./ContractInteraction";
 import { Output } from "./Output";
 import { SmartSessionSection } from "./SmartSession";
@@ -54,7 +53,8 @@ function App() {
   return (
     <div className="wrapper">
       <div className="header">
-        <img src={startaleLogo} alt="Startale logo" />
+        <img src={startaleLogo} alt="Startale logo" width={150} />
+        <div className="title">SCS Smart Account Demo</div>
         <div className="connect">
           {isLoggedIn ? (
             <>
@@ -102,7 +102,7 @@ function App() {
                   Sessions
                 </button>
               </div>
-              <div className="tab-content">
+              <div className="tabContent">
                 {selectedTab === "contract" && <ContractInteraction />}
                 {selectedTab === "recovery" && (
                   <SocialRecoverySection
