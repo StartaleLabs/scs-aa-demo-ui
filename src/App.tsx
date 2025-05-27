@@ -57,12 +57,12 @@ function App() {
         <div className="title">SCS Smart Account Demo</div>
         <div className="connect">
           {isLoggedIn ? (
-            <>
+            <div className="connected">
               <span>{user?.email ? user.email.address : ""}</span>
               <button type="button" className="connect-button" onClick={() => handleLogout()}>
                 Logout
               </button>
-            </>
+            </div>
           ) : (
             <button
               disabled={isLoginDisabled}
