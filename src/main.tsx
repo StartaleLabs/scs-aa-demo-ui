@@ -6,10 +6,12 @@ import { WagmiProvider } from "wagmi";
 
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
-import { DynamicWagmiConnector } from '@dynamic-labs/wagmi-connector';
+import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
 
 import App from "./App.tsx";
 import { config } from "./config.ts";
+import { OutputProvider } from "./providers/OutputProvider.tsx";
+import { StartaleProvider } from "./providers/StartaleAccountProvider.tsx";
 
 const root = document.getElementById("root") as HTMLElement;
 const queryClient = new QueryClient();
@@ -25,7 +27,11 @@ createRoot(root).render(
       <WagmiProvider config={config}>
         <QueryClientProvider client={queryClient}>
           <DynamicWagmiConnector>
-            <App />
+            <OutputProvider>
+              <StartaleProvider>
+                <App />
+              </StartaleProvider>
+            </OutputProvider>
           </DynamicWagmiConnector>
         </QueryClientProvider>
       </WagmiProvider>

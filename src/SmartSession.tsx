@@ -1,14 +1,4 @@
 import {
-  type CreateSessionDataParams,
-  type StartaleAccountClient,
-  type SessionData,
-  createSmartAccountClient,
-  smartSessionCreateActions,
-  smartSessionUseActions,
-  toStartaleSmartAccount,
-  toSmartSessionsValidator,
-} from "startale-aa-sdk";
-import {
   SmartSessionMode,
   getSmartSessionsValidator,
   isSessionEnabled,
@@ -16,17 +6,24 @@ import {
 import { useEffect, useState } from "react";
 import Dice from "react-dice-roll";
 import {
+  type CreateSessionDataParams,
+  type SessionData,
+  type StartaleAccountClient,
+  createSCSPaymasterClient,
+  createSmartAccountClient,
+  smartSessionCreateActions,
+  smartSessionUseActions,
+  toSmartSessionsValidator,
+  toStartaleSmartAccount,
+} from "startale-aa-sdk";
+import {
   type PublicClient,
   createPublicClient,
   encodeFunctionData,
   stringify,
   toFunctionSelector,
 } from "viem";
-import {
-  type GetPaymasterDataParameters,
-  createBundlerClient,
-  createPaymasterClient,
-} from "viem/account-abstraction";
+import { createBundlerClient } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
@@ -34,9 +31,9 @@ import { Section } from "./Section";
 import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
 import { AA_CONFIG } from "./config";
 import { gasOutput } from "./gasOutput";
-const { MINATO_RPC, BUNDLER_URL, PAYMASTER_SERVICE_URL, DICE_ROLL_LEDGER_ADDRESS } = AA_CONFIG;
-
-const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" };
+import { useOutput } from "./providers/OutputProvider";
+import { useStartale } from "./providers/StartaleAccountProvider";
+const { MINATO_RPC, BUNDLER_URL, DICE_ROLL_LEDGER_ADDRESS } = AA_CONFIG;
 
 const chain = soneiumMinato;
 
@@ -50,39 +47,26 @@ const bundlerClient = createBundlerClient({
   transport: http(BUNDLER_URL),
 });
 
-const paymasterClient = createPaymasterClient({
-  transport: http(PAYMASTER_SERVICE_URL),
-});
-
 export function SmartSessionSection({
   startaleClient,
-  addLine,
-  setLoadingText,
   handleErrors,
 }: {
   startaleClient: StartaleAccountClient;
-  addLine: (line: string, level?: string) => void;
-  setLoadingText: (text: string) => void;
   handleErrors: (error: Error, message: string) => void;
 }) {
-  const [isSessionModuleInstalled, setIsSessionModuleInstalled] = useState(false);
   const [activeSession, setActiveSession] = useState<SessionData | null>(null);
+  const { addLine, setLoadingText } = useOutput();
+  const { isSessionsModuleInstalled, checkIsSessionsModuleInstalled } = useStartale();
 
   useEffect(() => {
-    if (startaleClient) {
-      checkIsSessionModuleInstalled();
-    }
-  }, [startaleClient?.account?.address]);
-
-  useEffect(() => {
-    if (!isSessionModuleInstalled) {
+    if (!isSessionsModuleInstalled) {
       return;
     }
     const cachedSessionData = localStorage.getItem("smartSessionData");
     if (cachedSessionData) {
       setActiveSession(JSON.parse(cachedSessionData));
     }
-  }, [isSessionModuleInstalled]);
+  }, [isSessionsModuleInstalled]);
 
   useEffect(() => {
     if (activeSession) {
@@ -96,25 +80,12 @@ export function SmartSessionSection({
     await gasOutput(
       (text) => {
         console.log("got text: ", text);
-        console.log("Calling addLine with: ", text.trim(), "important");
-        addLine(text.trim(), "important");
+        console.log("Calling addLine with: ", text.trim(), "info");
+        addLine(text.trim(), "info");
       },
       startaleClient.account.address,
       "Smart account balance:",
     );
-  };
-
-  const checkIsSessionModuleInstalled = async () => {
-    const sessionsModule = getSmartSessionsValidator({});
-    const isSmartSessionsModuleInstalled = await startaleClient.isModuleInstalled({
-      module: sessionsModule,
-    });
-    if (isSmartSessionsModuleInstalled) {
-      addLine("Smart Sessions module already installed");
-    } else {
-      addLine("Smart Sessions module not installed");
-    }
-    setIsSessionModuleInstalled(isSmartSessionsModuleInstalled);
   };
 
   const installSmartSessionModule = async () => {
@@ -125,7 +96,7 @@ export function SmartSessionSection({
       const sessionsModule = getSmartSessionsValidator({});
       // console.log("sessionsModule ", sessionsModule)
 
-      if (!isSessionModuleInstalled) {
+      if (!isSessionsModuleInstalled) {
         setLoadingText("Installing Smart Sessions module");
         await displayGasOutput();
         const opHash = await startaleClient.installModule({
@@ -140,7 +111,7 @@ export function SmartSessionSection({
         console.log("Operation result: ", result.receipt.transactionHash);
         addLine("Smart Sessions module installed successfully");
         await displayGasOutput();
-        setIsSessionModuleInstalled(true);
+        checkIsSessionsModuleInstalled();
         setLoadingText("");
       }
     } catch (error) {
@@ -155,7 +126,7 @@ export function SmartSessionSection({
         throw new Error("Startale client not initialized");
       }
 
-      if (!isSessionModuleInstalled) {
+      if (!isSessionsModuleInstalled) {
         await installSmartSessionModule();
       }
 
@@ -172,7 +143,9 @@ export function SmartSessionSection({
         signer: sessionOwner,
       });
 
-      const startaleSessionClient = startaleClient.extend(smartSessionCreateActions(sessionsModule));
+      const startaleSessionClient = startaleClient.extend(
+        smartSessionCreateActions(sessionsModule),
+      );
 
       const selector = toFunctionSelector("writeDiceRoll(uint256)");
       const sessionRequestedInfo: CreateSessionDataParams[] = [
@@ -239,6 +212,12 @@ export function SmartSessionSection({
       });
       console.log("is session Enabled", isEnabled);
 
+      const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" };
+
+      const scsPaymasterClient = createSCSPaymasterClient({
+        transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any,
+      });
+
       const ownerKey = localStorage.getItem("sessionOwnerKey") as `0x${string}`;
       const sessionOwner = privateKeyToAccount(ownerKey);
       const smartSessionStartaleClient = createSmartAccountClient({
@@ -250,31 +229,8 @@ export function SmartSessionSection({
         }),
         transport: http(BUNDLER_URL),
         client: publicClient,
-        paymaster: {
-          async getPaymasterData(pmDataParams: GetPaymasterDataParameters) {
-            pmDataParams.paymasterPostOpGasLimit = BigInt(100000);
-            pmDataParams.paymasterVerificationGasLimit = BigInt(200000);
-            pmDataParams.verificationGasLimit = BigInt(500000);
-            const paymasterResponse = await paymasterClient.getPaymasterData(pmDataParams);
-            return paymasterResponse;
-          },
-          async getPaymasterStubData(pmStubDataParams: GetPaymasterDataParameters) {
-            const paymasterStubResponse =
-              await paymasterClient.getPaymasterStubData(pmStubDataParams);
-            paymasterStubResponse.paymasterPostOpGasLimit = BigInt(100000);
-            paymasterStubResponse.paymasterVerificationGasLimit = BigInt(200000);
-            return paymasterStubResponse;
-          },
-        },
+        paymaster: scsPaymasterClient,
         paymasterContext: scsContext,
-        userOperation: {
-          estimateFeesPerGas: async () => {
-            return {
-              maxFeePerGas: BigInt(10000000),
-              maxPriorityFeePerGas: BigInt(10000000),
-            };
-          },
-        },
         mock: true,
       });
 

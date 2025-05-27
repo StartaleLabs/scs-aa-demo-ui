@@ -134,7 +134,7 @@ PAYMASTER_SERVICE_URL=https://paymaster.scs.startale.com/v1?apikey=[API_KEY]
       index: BigInt(0), //Nonce for account instance
     });
 
-    const scsContext = { calculateGasLimits: false, paymasterId: "pm_test_self_funded" };
+    const scsContext = { calculateGasLimits: false, paymasterId: "pm_test_managed" };
 
     const accountClientInstance = createSmartAccountClient({
         account: startaleAccountInstance,
