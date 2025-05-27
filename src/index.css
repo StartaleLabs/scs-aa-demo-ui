@@ -308,3 +308,16 @@ textarea {
   margin-bottom: 1.5rem;
   color: var(--color-muted);
 }
+
+.diceContainer {
+  background-color: var(--color-bg-white);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  button {
+    background-color: var(--color-bg-white);
+  }
+}
