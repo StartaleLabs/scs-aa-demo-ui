@@ -1,7 +1,7 @@
 :root {
   --color-bg-light: #FAFAFA;
   --color-bg-white: #FFFFFF;
-  --color-border: #F4F4F5;
+  --color-border: #E4E4E5;
   --color-text: #1F2937;
   --color-muted: #9CA3AF;
   --border-radius: 6px;
@@ -276,4 +276,35 @@ textarea {
   color: var(--color-muted);
   font-size: 0.875rem;
   margin-top: 0.5rem;
+}
+
+.sectionWrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+}
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-bottom: none;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+.sectionContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  background-color: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+  padding: 1rem;
+  box-sizing: border-box;
+  text-align: left;
+  margin-bottom: 1.5rem;
+  color: var(--color-muted);
 }

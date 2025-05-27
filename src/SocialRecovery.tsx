@@ -300,16 +300,19 @@ export function SocialRecoverySection({
   return (
     <>
       <Section title="Connect your wallet">
-        <div>
+        <div className="inputGroup">
           <p>Connect an external wallet or add the address manually to act as a guardian.</p>
           {injectedWallet ? (
             <>
               <p>Injected wallet detected: {injectedWallet.address}</p>
+
               <button
                 type="button"
+                className="primaryButton"
                 onClick={() => {
                   handleAddNewGuardian(injectedWallet.address as `0x${string}`);
                 }}
+                style={{ width: "100%" }}
               >
                 Add as guardian
               </button>
@@ -338,27 +341,28 @@ export function SocialRecoverySection({
             </div>
           ))}
           <div className="inputGroup">
-            <div className="addressInput">
-              <label htmlFor="guardian">New address:</label>
-              <input
-                name="guardian"
-                type="text"
-                value={guardian}
-                onChange={(e) => setGuardian(e.target.value as `0x${string}`)}
-              />
-            </div>
+            <label htmlFor="guardian">New address:</label>
+            <input
+              name="guardian"
+              type="text"
+              placeholder="0x..."
+              className="textInput"
+              value={guardian}
+              onChange={(e) => setGuardian(e.target.value as `0x${string}`)}
+            />
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (guardian) {
-                handleAddNewGuardian();
-              }
-            }}
-          >
-            Add Guardian
-          </button>
         </div>
+        <button
+          type="button"
+          className="primaryButton"
+          onClick={() => {
+            if (guardian) {
+              handleAddNewGuardian();
+            }
+          }}
+        >
+          Add Guardian
+        </button>
       </Section>
       <Section title="Recover account">
         <p>To recover your account, you need to provide the address of one of your guardians.</p>
@@ -386,6 +390,7 @@ export function SocialRecoverySection({
         </div>
         <button
           type="button"
+          className="primaryButton"
           onClick={() => {
             changeECDSAValidatorOwner(guardian as `0x${string}`);
           }}
