@@ -14,7 +14,7 @@ const predefinedContracts = {
   },
   counter: {
     name: "Counter contract",
-    address: "0xA04D053b3C8021e8D5bF641816c42dAA75D8b597",
+    address: "0x6bcf154A6B80fDE9bd1556d39C9bCbB19B539Bd8",
     abi: CounterAbi,
   },
   custom: {
@@ -187,9 +187,15 @@ export function ContractInteraction() {
                 />
               </div>
             ))}
-          <button className="primaryButton" type="button" onClick={handleSubmit}>
-            Send User Operation
-          </button>
+          <div className="buttonGroup">
+            <button className="primaryButton" type="button" onClick={handleSubmit}>
+              Send Sponsored User Operation
+            </button>
+            <p>Or</p>
+            <button className="primaryButton" type="button" onClick={handleSubmit}>
+              Pay gas for User Operation with ASTR
+            </button>
+          </div>
         </>
       )}
     </div>

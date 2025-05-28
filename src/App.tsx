@@ -12,7 +12,7 @@ function App() {
   const { sdkHasLoaded, setShowAuthFlow, user, handleLogOut, primaryWallet } = useDynamicContext();
   const authenticated = useIsLoggedIn();
   const { clearLines, setConnectedAddress, setLoadingText, addLine } = useOutput();
-  const { startaleAccount, startaleClient, logout: startaleLogout } = useStartale();
+  const { startaleAccount, startaleClient, logout: startaleLogout, astrBalance } = useStartale();
 
   useEffect(() => {
     clearLines();
@@ -57,6 +57,7 @@ function App() {
           {isLoggedIn ? (
             <div className="connected">
               <span>{user?.email ? user.email : ""}</span>
+              <span>ASTR balance: {astrBalance}</span>
               <button type="button" className="connect-button" onClick={() => handleLogout()}>
                 Logout
               </button>
