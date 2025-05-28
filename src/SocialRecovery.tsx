@@ -1,8 +1,7 @@
-import { useConnectWallet, useWallets } from "@privy-io/react-auth";
 import { getSocialRecoveryMockSignature, getSocialRecoveryValidator } from "@rhinestone/module-sdk";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { StartaleAccountClient } from "startale-aa-sdk";
-import { createPublicClient, encodeFunctionData, encodePacked } from "viem";
+import { createPublicClient, encodeFunctionData } from "viem";
 import { entryPoint07Address, getUserOperationHash } from "viem/account-abstraction";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
@@ -33,8 +32,7 @@ export function SocialRecoverySection({
   const [guardian, setGuardian] = useState<`0x${string}` | "">("");
   const { addLine, setLoadingText } = useOutput();
   const { checkIsRecoveryModuleInstalled, isRecoveryModuleInstalled } = useStartale();
-  const { connectWallet } = useConnectWallet();
-  const { wallets, ready } = useWallets();
+
   const displayGasOutput = async () => {
     await gasOutput(
       (text) => {
@@ -55,9 +53,9 @@ export function SocialRecoverySection({
     }
   }, [isRecoveryModuleInstalled]);
 
-  const injectedWallet = useMemo(() => {
-    return wallets.find((w) => w.connectorType === "injected");
-  }, [wallets]);
+  // const injectedWallet = useMemo(() => {
+  //   return wallets.find((w) => w.connectorType === "injected");
+  // }, [wallets]);
 
   const getGuardians = async () => {
     const accountGuardians = (await publicClient.readContract({
@@ -182,19 +180,19 @@ export function SocialRecoverySection({
 
       // Note: This should be signed by the guardian/s
 
-      if (!injectedWallet || injectedWallet.address !== address) {
-        console.error("Injected wallet not found or does not match the guardian address");
-        return;
-      }
-      const signature = await injectedWallet.sign(userOpHashToSign);
+      // if (!injectedWallet || injectedWallet.address !== address) {
+      //   console.error("Injected wallet not found or does not match the guardian address");
+      //   return;
+      // }
+      // const signature = await injectedWallet.sign(userOpHashToSign);
 
-      const finalSig = encodePacked(
-        Array(1).fill('bytes'),
-        Array(1).fill(signature),
-      )
+      // const finalSig = encodePacked(
+      //   Array(1).fill('bytes'),
+      //   Array(1).fill(signature),
+      // )
 
-      userOperation.signature = finalSig;
-      console.log("User operation with signature: ", userOperation);
+      // userOperation.signature = finalSig;
+      // console.log("User operation with signature: ", userOperation);
 
       // Check if anything changes in this route..cause so far we already have paymaster sig
       // if sendUserOperation call changes anything or tries to sign it again using active module it could cause problems
@@ -288,18 +286,18 @@ export function SocialRecoverySection({
     await getGuardians();
   };
 
-  const connectExternalWallet = async () => {
-    try {
-      const wallet = await connectWallet();
-      console.log("Connected wallet: ", wallet);
-    } catch (error) {
-      console.error("Error connecting wallet", error);
-    }
-  };
+  // const connectExternalWallet = async () => {
+  //   try {
+  //     const wallet = await connectWallet();
+  //     console.log("Connected wallet: ", wallet);
+  //   } catch (error) {
+  //     console.error("Error connecting wallet", error);
+  //   }
+  // };
 
   return (
     <>
-      <Section title="Connect your wallet">
+      {/* <Section title="Connect your wallet">
         <div className="inputGroup">
           <p>Connect an external wallet or add the address manually to act as a guardian.</p>
           {injectedWallet ? (
@@ -323,7 +321,7 @@ export function SocialRecoverySection({
             </button>
           )}
         </div>
-      </Section>
+      </Section> */}
       <Section title="Manually add guardians">
         {guardians.length > 0 && <div>Guardians:</div>}
         <div className="inputGroup">
@@ -391,12 +389,18 @@ export function SocialRecoverySection({
         <button
           type="button"
           className="primaryButton"
+          disabled={true}
           onClick={() => {
             changeECDSAValidatorOwner(guardian as `0x${string}`);
           }}
         >
           Recover Account
         </button>
+        <div>
+          <pre>
+            Note: Actually changing the owner is out of scope for this demo. The button is disabled.
+          </pre>
+        </div>
       </Section>
     </>
   );

@@ -1,6 +1,6 @@
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
 import type { Module } from "@rhinestone/module-sdk";
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
   type StartaleAccountClient,
   type StartaleSmartAccount,
@@ -9,16 +9,13 @@ import {
   getSmartSessionsValidator,
   toStartaleSmartAccount,
 } from "startale-aa-sdk";
-import { http, createPublicClient, createWalletClient, custom } from "viem";
-import { type GetPaymasterDataParameters, createPaymasterClient } from "viem/account-abstraction";
+import { http, createPublicClient } from "viem";
 import { soneiumMinato } from "viem/chains";
 import { AA_CONFIG } from "../config";
 import { useOutput } from "./OutputProvider";
 
 const chain = soneiumMinato;
 const publicClient = createPublicClient({ transport: http(AA_CONFIG.MINATO_RPC), chain });
-const paymasterClient = createPaymasterClient({ transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) });
-const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" };
 
 export const StartaleContext = createContext<{
   startaleAccount?: StartaleSmartAccount;
@@ -37,8 +34,8 @@ export function useStartale() {
 }
 
 export function StartaleProvider({ children }: { children: React.ReactNode }) {
-  const { authenticated } = usePrivy();
-  const { wallets } = useWallets();
+  const { primaryWallet } = useDynamicContext();
+  const authenticated = useIsLoggedIn();
   const { addLine, clearLines, setLoadingText, setSmartAccountAddress } = useOutput();
 
   const [startaleAccount, setStartaleAccount] = useState<StartaleSmartAccount>();
@@ -46,10 +43,6 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
   const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
   const [isSessionsModuleInstalled, setIsSessionsModuleInstalled] = useState(false);
   const didLogout = useRef(false);
-
-  const embeddedWallet = useMemo(() => {
-    return wallets.find((w) => w.connectorType === "embedded");
-  }, [wallets]);
 
   useEffect(() => {
     if (!authenticated && !didLogout.current) {
@@ -62,12 +55,12 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
   }, [authenticated]);
 
   useEffect(() => {
-    if (!authenticated || !wallets[0]?.address) {
+    if (!authenticated || !primaryWallet?.address) {
       cleanUp();
       return;
     }
     getSmartAccountInstance();
-  }, [wallets[0]?.address, authenticated]);
+  }, [primaryWallet?.address, authenticated]);
 
   useEffect(() => {
     const checkModules = async () => {
@@ -91,31 +84,30 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getSmartAccountInstance = async () => {
-    if (!embeddedWallet) {
+    if (!primaryWallet) {
       addLine("No embedded wallet found");
       return;
     }
-    const provider = await embeddedWallet.getEthereumProvider();
-    const walletClient = createWalletClient({
-      account: embeddedWallet.address as `0x${string}`,
-      chain,
-      transport: custom(provider),
-    });
+
+    //@ts-ignore
+    const walletClient = await primaryWallet.getWalletClient();
+    console.log("Wallet client: ", walletClient);
     const instance = await toStartaleSmartAccount({
       signer: walletClient,
       chain,
       transport: http(),
       index: BigInt(813367),
     });
+
     setStartaleAccount(instance);
     setSmartAccountAddress(instance.address);
     await initClient(instance);
   };
 
-  const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_managed" }
+  const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_managed" };
 
   const scsPaymasterClient = createSCSPaymasterClient({
-    transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any
+    transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any,
   });
 
   const initClient = async (account: StartaleSmartAccount) => {

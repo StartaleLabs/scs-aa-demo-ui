@@ -4,8 +4,10 @@ import "./index.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
 
-import { PrivyProvider } from "@privy-io/react-auth";
-import { soneiumMinato } from "viem/chains";
+import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
+import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
+import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
+
 import App from "./App.tsx";
 import { config } from "./config.ts";
 import { OutputProvider } from "./providers/OutputProvider.tsx";
@@ -16,33 +18,23 @@ const queryClient = new QueryClient();
 
 createRoot(root).render(
   <StrictMode>
-    <PrivyProvider
-      appId="cm8pwpq5r021np8n16w4njn7e"
-      config={{
-        // Display email and wallet as login methods
-        loginMethods: ["email", "google", "wallet"],
-        appearance: {
-          theme: "light",
-          accentColor: "#676FFF",
-        },
-        // Create embedded wallets for users who don't have a wallet
-        embeddedWallets: {
-          createOnLogin: "all-users",
-          showWalletUIs: false,
-        },
-        supportedChains: [soneiumMinato],
-        defaultChain: soneiumMinato,
+    <DynamicContextProvider
+      settings={{
+        environmentId: "0d1b1dd7-e4f9-44dc-992c-408fa880f097",
+        walletConnectors: [EthereumWalletConnectors],
       }}
     >
       <WagmiProvider config={config}>
         <QueryClientProvider client={queryClient}>
-          <OutputProvider>
-            <StartaleProvider>
-              <App />
-            </StartaleProvider>
-          </OutputProvider>
+          <DynamicWagmiConnector>
+            <OutputProvider>
+              <StartaleProvider>
+                <App />
+              </StartaleProvider>
+            </OutputProvider>
+          </DynamicWagmiConnector>
         </QueryClientProvider>
       </WagmiProvider>
-    </PrivyProvider>
+    </DynamicContextProvider>
   </StrictMode>,
 );
