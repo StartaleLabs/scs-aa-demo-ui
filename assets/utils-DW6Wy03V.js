@@ -1,0 +1,16 @@
+import{a8 as h,a9 as B,aa as w}from"./index-rE57GkpX.js";/**
+ * Code modified from https://github.com/google/tink/blob/6f74b99a2bfe6677e3670799116a57268fd067fa/javascript/subtle/bytes.ts
+ *
+ * @license
+ * Copyright 2020 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */function m(t){if(t.length%2!=0)throw new Error("Hex string length must be multiple of 2");const r=new Uint8Array(t.length/2);for(let n=0;n<t.length;n+=2)r[n/2]=parseInt(t.substring(n,n+2),16);return r}function y(t){let r="";for(let n=0;n<t.length;n++){const e=t[n].toString(16);r+=e.length>1?e:"0"+e}return r}function c(t,r){return btoa(I(t)).replace(/=/g,"").replace(/\+/g,"-").replace(/\//g,"_")}function I(t){let r="";for(let n=0;n<t.length;n+=1)r+=String.fromCharCode(t[n]);return r}/**
+ * Code modified from https://github.com/google/tink/blob/6f74b99a2bfe6677e3670799116a57268fd067fa/javascript/subtle/elliptic_curves.ts
+ * - The implementation of integerToByteArray has been modified to augment the resulting byte array to a certain length.
+ * - The implementation of PointDecode has been modified to decode both compressed and uncompressed points by checking for correct format
+ * - Method isP256CurvePoint added to check whether an uncompressed point is valid
+ *
+ * @license
+ * Copyright 2020 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ */function g(){return BigInt("115792089210356248762697446949407573530086143415290314195533631308867097853951")}function d(){return BigInt("0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b")}function a(t){return BigInt("0x"+y(t))}function u(t,r){const n=t.toString(16),e=r*2;let o="";if(e<n.length)throw new Error(`cannot pack integer with ${n.length} hex chars into ${r} bytes`);return o="0".repeat(e-n.length),m(o+n)}function l(t,r){const n=BigInt(1)<<BigInt(r);return(t&n)!==BigInt(0)}function b(t,r,n){if(r===BigInt(0))return BigInt(1);let e=t;const o=r.toString(2);for(let s=1;s<o.length;++s)e=e*e%n,o[s]==="1"&&(e=e*t%n);return e}function E(t,r){if(r<=BigInt(0))throw new Error("p must be positive");const n=t%r;if(l(r,0)&&l(r,1)){const e=r+BigInt(1)>>BigInt(2),o=b(n,e,r);if(o*o%r!==n)throw new Error("could not find a modular square root");return o}throw new Error("unsupported modulus value")}function x(t,r){const n=g(),e=n-BigInt(3),o=d(),s=((t*t+e)*t+o)%n;let i=E(s,n);return r!==l(i,0)&&(i=(n-i)%n),i}function p(t,r){const n=g(),e=n-BigInt(3),o=d(),s=((t*t+e)*t+o)%n;return r**BigInt(2)%n===s}function S(t){const r=v(),n=r+1,e=2*r+1;if(t.length!==n&&t.length!==e)throw new Error("Invalid length: point is not in compressed or uncompressed format");if((t[0]===2||t[0]===3)&&t.length==n){const o=t[0]===3,s=a(t.subarray(1,t.length)),i=g();if(s<BigInt(0)||s>=i)throw new Error("x is out of range");const f=x(s,o);return{kty:"EC",crv:"P-256",x:c(u(s,32)),y:c(u(f,32)),ext:!0}}else if(t[0]===4&&t.length==e){const o=a(t.subarray(1,r+1)),s=a(t.subarray(r+1,2*r+1)),i=g();if(o<BigInt(0)||o>=i||s<BigInt(0)||s>=i||!p(o,s))throw new Error("invalid uncompressed x and y coordinates");return{kty:"EC",crv:"P-256",x:c(u(o,32)),y:c(u(s,32)),ext:!0}}throw new Error("invalid format")}function v(){return 32}function P(t){const{uncompressedPrivateKeyHex:r,compressedPublicKeyHex:n}=t,e=S(h(n));return e.d=B(r,w),e}export{P as c};
