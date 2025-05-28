@@ -397,9 +397,10 @@ export function SocialRecoverySection({
           Recover Account
         </button>
         <div>
-          <pre>
-            Note: Actually changing the owner is out of scope for this demo. The button is disabled.
-          </pre>
+          <div className="note">
+            <b>Note:</b> Actually changing the owner is out of scope for this demo. The button is
+            disabled.
+          </div>
         </div>
       </Section>
     </>

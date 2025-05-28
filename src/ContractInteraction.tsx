@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { type Abi, encodeFunctionData } from "viem";
+import { type Abi, type Address, encodeFunctionData, toHex } from "viem";
+import { soneiumMinato } from "viem/chains";
 import { CounterAbi } from "./abi/Counter";
 import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
 import { useOutput } from "./providers/OutputProvider";
@@ -26,7 +27,7 @@ const predefinedContracts = {
 
 export function ContractInteraction() {
   const [selectedKey, setSelectedKey] = useState<keyof typeof predefinedContracts>("none");
-  const { startaleClient } = useStartale();
+  const { startaleClient, startaleTokenClient } = useStartale();
   const [selectedFunction, setSelectedFunction] = useState<string>("");
   const { addLine, setLoadingText } = useOutput();
   const [functionArgs, setFunctionArgs] = useState<Record<string, string>>({});
@@ -75,7 +76,8 @@ export function ContractInteraction() {
   useEffect(() => {
     console.log("args", functionArgs);
   }, [functionArgs]);
-  const handleSubmit = async () => {
+
+  const handleSubmitSponsoredOp = async () => {
     try {
       if (!startaleClient) throw new Error("Client not initialized");
       const abi = contractAbi as Abi;
@@ -102,6 +104,35 @@ export function ContractInteraction() {
       addLine((err as Error).message);
       setLoadingText("");
     }
+  };
+
+  const handleSubmitTokenOp = async () => {
+    if (!startaleTokenClient) throw new Error("Client not initialized");
+    const abi = contractAbi as Abi;
+    const parsedArgs = Object.values(functionArgs);
+    const data = encodeFunctionData({
+      abi,
+      functionName: selectedFunction,
+      args: parsedArgs,
+    });
+    setLoadingText("Sending user operation...");
+
+    const preparedUserOp = await startaleTokenClient.prepareUserOperation({
+      calls: [
+        {
+          to: contractAddress as Address,
+          value: BigInt(0),
+          data,
+        },
+      ],
+    });
+
+    //@ts-ignore
+    const quotes = await startaleTokenClient.getTokenPaymasterQuotes({
+      userOp: preparedUserOp,
+      chainId: toHex(soneiumMinato.id),
+    });
+    console.log("Quotes: ", quotes);
   };
 
   return (
@@ -188,11 +219,11 @@ export function ContractInteraction() {
               </div>
             ))}
           <div className="buttonGroup">
-            <button className="primaryButton" type="button" onClick={handleSubmit}>
+            <button className="primaryButton" type="button" onClick={handleSubmitSponsoredOp}>
               Send Sponsored User Operation
             </button>
             <p>Or</p>
-            <button className="primaryButton" type="button" onClick={handleSubmit}>
+            <button className="primaryButton" type="button" onClick={handleSubmitTokenOp}>
               Pay gas for User Operation with ASTR
             </button>
           </div>
