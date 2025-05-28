@@ -1,6 +1,5 @@
-import { useDynamicContextcCuseIsLoggedInuseIsLogg@dynamic-labs/sdk-edInu-coreseIsLogg@dynamic-labs/sdk-edInu-coreseIsLogg@dynamic-labs/sdk-edInu-coreseIsLogg@dynamic-labs/sdk-edInu-coreseIsLogg@dynamic-labs/sdk-edInu-coreseIsLogg@dynamic-labs/sdk-edInu-coreseIsLogg@dynamic-labs/sdk-edInu-coreseIsLogg@dynamic-labs/sdk-edIn -core} from "@dynamic-labs/sdk-react-core";
-import { useEffectteuseState
-
+import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
+import { useEffect, useState } from "react";
 import startaleLogo from "../public/scs_logo.svg";
 import { ContractInteraction } from "./ContractInteraction";
 import { Output } from "./Output";
@@ -10,20 +9,19 @@ import { useOutput } from "./providers/OutputProvider";
 import { useStartale } from "./providers/StartaleAccountProvider";
 
 function App() {
-  const { sdkHasLoaded,setShowAuthFlow, user, handleLogOut } = useDynamicContext();
+  const { sdkHasLoaded, setShowAuthFlow, user, handleLogOut, primaryWallet } = useDynamicContext();
   const authenticated = useIsLoggedIn();
   const { clearLines, setConnectedAddress, setLoadingText, addLine } = useOutput();
   const { startaleAccount, startaleClient, logout: startaleLogout } = useStartale();
-  const { wallets } = useWallets();
 
   useEffect(() => {
     clearLines();
     if (!authenticated) return;
-    const embeddedWallet = wallets.filter((w) => w.connectorType === "embedded")[0];
+    const embeddedWallet = primaryWallet;
     setConnectedAddress(embeddedWallet?.address || "");
-  }, [wallets]);
+  }, [primaryWallet]);
 
- const isLoginDisabled = !sdkHasLoaded;
+  const isLoginDisabled = !sdkHasLoaded;
   const isLoggedIn = authenticated && sdkHasLoaded;
 
   const handleErrors = (error: Error, text?: string) => {
@@ -41,7 +39,7 @@ function App() {
     setConnectedAddress("");
     addLine("Logging out...");
     startaleLogout();
-    logout();
+    handleLogOut();
   };
 
   const [selectedTab, setSelectedTab] = useState<"contract" | "recovery" | "session">("contract");
