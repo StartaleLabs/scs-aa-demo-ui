@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { type Abi, type Address, encodeFunctionData, toHex } from "viem";
+import { type Abi, type Address, encodeFunctionData, http, toHex } from "viem";
 import { soneiumMinato } from "viem/chains";
 import { CounterAbi } from "./abi/Counter";
 import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
 import { useOutput } from "./providers/OutputProvider";
 import { useStartale } from "./providers/StartaleAccountProvider";
+import { createSCSPaymasterClient } from "startale-aa-sdk";
+import { AA_CONFIG } from "./config";
 
 const predefinedContracts = {
   none: { name: "Select contract", address: "", abi: null },
@@ -27,7 +29,7 @@ const predefinedContracts = {
 
 export function ContractInteraction() {
   const [selectedKey, setSelectedKey] = useState<keyof typeof predefinedContracts>("none");
-  const { startaleClient, startaleTokenClient } = useStartale();
+  const { startaleClient, startaleTokenClient, fetchAstrBalance } = useStartale();
   const [selectedFunction, setSelectedFunction] = useState<string>("");
   const { addLine, setLoadingText } = useOutput();
   const [functionArgs, setFunctionArgs] = useState<Record<string, string>>({});
@@ -108,6 +110,8 @@ export function ContractInteraction() {
 
   const handleSubmitTokenOp = async () => {
     if (!startaleTokenClient) throw new Error("Client not initialized");
+    if (!startaleTokenClient.paymaster)
+      throw new Error("Paymaster not configured in the client");
     const abi = contractAbi as Abi;
     const parsedArgs = Object.values(functionArgs);
     const data = encodeFunctionData({
@@ -115,6 +119,11 @@ export function ContractInteraction() {
       functionName: selectedFunction,
       args: parsedArgs,
     });
+    // const data = encodeFunctionData({
+    //   abi: CounterAbi,
+    //   functionName: "count",
+    // });
+
     setLoadingText("Sending user operation...");
 
     const preparedUserOp = await startaleTokenClient.prepareUserOperation({
@@ -127,12 +136,43 @@ export function ContractInteraction() {
       ],
     });
 
-    //@ts-ignore
-    const quotes = await startaleTokenClient.getTokenPaymasterQuotes({
+    const scsPaymasterClient = createSCSPaymasterClient({
+          transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL),
+        });
+    const quotes = await scsPaymasterClient.getTokenPaymasterQuotes({
       userOp: preparedUserOp,
       chainId: toHex(soneiumMinato.id),
     });
+
+    const astrQuote = quotes.feeQuotes.find(
+      (quote) => quote.tokenAddress.toLowerCase() === AA_CONFIG.ASTR_TOKEN_ADDRESS.toLowerCase(),
+    );
+
     console.log("Quotes: ", quotes);
+    console.log("ASTR Quote: ", astrQuote);
+    console.log(AA_CONFIG.ASTR_TOKEN_ADDRESS);
+    if (!astrQuote) {
+      addLine("No ASTR token quote found");
+      setLoadingText("");
+      return;
+    }
+    const hash = await startaleTokenClient.sendTokenPaymasterUserOp({
+      calls: [
+        {
+          to: contractAddress as Address,
+          value: BigInt(0),
+          data,
+        },
+      ],
+      feeTokenAddress: AA_CONFIG.ASTR_TOKEN_ADDRESS,
+      customApprovalAmount: BigInt(astrQuote.requiredAmount),
+    })
+
+    const receipt = await startaleTokenClient.waitForUserOperationReceipt({hash});
+    addLine(`UserOperation sent: ${receipt.userOpHash}`);
+    setLoadingText("");
+    fetchAstrBalance();
+    console.log("UserOperation receipt: ", receipt);
   };
 
   return (

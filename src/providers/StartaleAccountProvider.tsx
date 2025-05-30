@@ -161,9 +161,9 @@ const initClients = async (account: StartaleSmartAccount) => {
 
   const initTokenClient = async (account: StartaleSmartAccount) => {
 
-const scsPaymasterClient = createSCSPaymasterClient({
-  transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any,
-});
+    const scsPaymasterClient = createSCSPaymasterClient({
+      transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL),
+    });
 
     try {
       const client = createSmartAccountClient({
