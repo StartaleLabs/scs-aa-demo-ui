@@ -7,9 +7,8 @@ import { WagmiProvider } from "wagmi";
 import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
 import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
-
-import App from "./App.tsx";
 import { config } from "./config.ts";
+import App from "./App.tsx";
 import { OutputProvider } from "./providers/OutputProvider.tsx";
 import { StartaleProvider } from "./providers/StartaleAccountProvider.tsx";
 

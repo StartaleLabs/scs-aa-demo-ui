@@ -5,7 +5,7 @@ import { CounterAbi } from "./abi/Counter";
 import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
 import { useOutput } from "./providers/OutputProvider";
 import { useStartale } from "./providers/StartaleAccountProvider";
-import { createSCSPaymasterClient } from "startale-aa-sdk";
+import { createSCSPaymasterClient } from "@startale-scs/aa-sdk";
 import { AA_CONFIG } from "./config";
 
 const predefinedContracts = {
