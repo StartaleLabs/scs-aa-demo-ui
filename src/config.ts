@@ -1,13 +1,13 @@
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import type { Address } from "viem";
-import { soneiumMinato } from "wagmi/chains";
+import { soneiumMinato } from "viem/chains";
+import { createConfig, http } from "wagmi";
 
-export const config = getDefaultConfig({
-  appName: "Soneium AA demo",
-  projectId: "SCS_AA",
+export const config = createConfig({
   chains: [soneiumMinato],
-  ssr: false,
-});
+  transports: {
+    [soneiumMinato.id]: http(),
+  }
+})
 
 export const AA_CONFIG = {
   MINATO_RPC: "https://rpc.minato.soneium.org",
