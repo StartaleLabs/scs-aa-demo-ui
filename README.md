@@ -53,7 +53,7 @@ This section details the core technologies, smart contracts, and SDKs used in th
 ### Key Libraries and SDKs
   - `rhinestone/module-sdk`, for interaction with ERC-7579 modules
     - NOTE: for compatibility reasons, the module version is locked to `0.2.3`
-  - `startale-aa-sdk` instantiate and manage accounts
+  - `@startale-scs/aa-sdk` instantiate and manage accounts
   - `viem` for SC interaction from TS
   - and optionally `wagmi` for ReactJs integration
 
@@ -118,7 +118,7 @@ PAYMASTER_SERVICE_URL=https://paymaster.scs.startale.com/v1?apikey=[API_KEY]
 
 2. **Create a Smart Account and a client**
 
-   - Utilize `startale-aa-sdk` to instantiate a smart account.
+   - Utilize `@startale-scs/aa-sdk` to instantiate a smart account.
    - Use `window.ethereum` provider as a signer
    - for backend use a different `signer` instance (f.ex. `viem`'s local wallet)
    - use `createSmartAccountClient` for further interaction with the account

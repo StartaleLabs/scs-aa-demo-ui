@@ -8,7 +8,7 @@ import {
   createSmartAccountClient,
   getSmartSessionsValidator,
   toStartaleSmartAccount,
-} from "startale-aa-sdk";
+} from "@startale-scs/aa-sdk";
 import { http, createPublicClient, erc20Abi, formatEther } from "viem";
 import { soneiumMinato } from "viem/chains";
 import { useReadContract } from "wagmi";
