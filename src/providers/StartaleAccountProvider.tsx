@@ -112,7 +112,7 @@ const [astrBalance, setAstrBalance] = useState<number>(0);
       signer: walletClient,
       chain,
       transport: http(),
-      index: BigInt(813367),
+      index: BigInt(813367789),
     });
 
     setStartaleAccount(instance);
@@ -121,8 +121,8 @@ const [astrBalance, setAstrBalance] = useState<number>(0);
     await fetchAstrBalance();
   };
 
-  const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_managed" };
-const scsTokenContext = { calculateGasLimits: true, token: AA_CONFIG.ASTR_TOKEN_ADDRESS };
+  const scsContext = { calculateGasLimits: true, paymasterId: AA_CONFIG.PAYMASTER_ID }
+
   const scsPaymasterClient = createSCSPaymasterClient({
     transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any,
   });
@@ -171,7 +171,7 @@ const initClients = async (account: StartaleSmartAccount) => {
         transport: http(AA_CONFIG.BUNDLER_URL),
         client: publicClient,
         paymaster: scsPaymasterClient,
-        paymasterContext: scsTokenContext,
+        paymasterContext: scsContext,
       });
       setStartaleTokenClient(client);
       client.signMessage;

@@ -23,7 +23,9 @@ import {
   stringify,
   toFunctionSelector,
 } from "viem";
-import { createBundlerClient } from "viem/account-abstraction";
+import {
+  createBundlerClient
+} from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
@@ -212,7 +214,7 @@ export function SmartSessionSection({
       });
       console.log("is session Enabled", isEnabled);
 
-      const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" };
+      const scsContext = { calculateGasLimits: true, paymasterId: AA_CONFIG.PAYMASTER_ID }
 
       const scsPaymasterClient = createSCSPaymasterClient({
         transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any,

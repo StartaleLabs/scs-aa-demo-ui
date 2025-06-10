@@ -1,8 +1,15 @@
-import { getSocialRecoveryMockSignature, getSocialRecoveryValidator } from "@rhinestone/module-sdk";
+//import { useConnectWallet, useWallets } from "@privy-io/react-auth";
+import {
+  getSocialRecoveryMockSignature,
+  getSocialRecoveryValidator,
+} from "@rhinestone/module-sdk";
 import { useEffect, useState } from "react";
 import type { StartaleAccountClient } from "@startale-scs/aa-sdk";
 import { createPublicClient, encodeFunctionData } from "viem";
-import { entryPoint07Address, getUserOperationHash } from "viem/account-abstraction";
+import {
+  entryPoint07Address,
+  getUserOperationHash
+} from "viem/account-abstraction";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
 import { Section } from "./Section";
@@ -31,8 +38,10 @@ export function SocialRecoverySection({
   const [guardians, setGuardians] = useState<`0x${string}`[]>([]);
   const [guardian, setGuardian] = useState<`0x${string}` | "">("");
   const { addLine, setLoadingText } = useOutput();
-  const { checkIsRecoveryModuleInstalled, isRecoveryModuleInstalled } = useStartale();
-
+  const { checkIsRecoveryModuleInstalled, isRecoveryModuleInstalled } =
+    useStartale();
+  // const { connectWallet } = useConnectWallet();
+  // const { wallets, ready } = useWallets();
   const displayGasOutput = async () => {
     await gasOutput(
       (text) => {
