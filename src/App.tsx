@@ -1,7 +1,6 @@
-import "./App.css";
-import { useLogin, useLogout, usePrivy, useWallets } from "@privy-io/react-auth";
+import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
 import { useEffect, useState } from "react";
-import startaleLogo from "../public/startale_logo.webp";
+import startaleLogo from "../public/scs_logo.svg";
 import { ContractInteraction } from "./ContractInteraction";
 import { Output } from "./Output";
 import { SmartSessionSection } from "./SmartSession";
@@ -10,22 +9,20 @@ import { useOutput } from "./providers/OutputProvider";
 import { useStartale } from "./providers/StartaleAccountProvider";
 
 function App() {
-  const { login } = useLogin();
-  const { ready, authenticated, user } = usePrivy();
-  const { logout } = useLogout();
+  const { sdkHasLoaded, setShowAuthFlow, user, handleLogOut, primaryWallet } = useDynamicContext();
+  const authenticated = useIsLoggedIn();
   const { clearLines, setConnectedAddress, setLoadingText, addLine } = useOutput();
-  const { startaleAccount, startaleClient, logout: startaleLogout } = useStartale();
-  const { wallets } = useWallets();
+  const { startaleAccount, startaleClient, logout: startaleLogout, astrBalance } = useStartale();
 
   useEffect(() => {
     clearLines();
     if (!authenticated) return;
-    const embeddedWallet = wallets.filter((w) => w.connectorType === "embedded")[0];
+    const embeddedWallet = primaryWallet;
     setConnectedAddress(embeddedWallet?.address || "");
-  }, [wallets]);
+  }, [primaryWallet]);
 
-  const isLoginDisabled = !ready;
-  const isLoggedIn = authenticated && ready;
+  const isLoginDisabled = !sdkHasLoaded;
+  const isLoggedIn = authenticated && sdkHasLoaded;
 
   const handleErrors = (error: Error, text?: string) => {
     setLoadingText("");
@@ -42,7 +39,7 @@ function App() {
     setConnectedAddress("");
     addLine("Logging out...");
     startaleLogout();
-    logout();
+    handleLogOut();
   };
 
   const [selectedTab, setSelectedTab] = useState<"contract" | "recovery" | "session">("contract");
@@ -54,21 +51,23 @@ function App() {
   return (
     <div className="wrapper">
       <div className="header">
-        <img src={startaleLogo} alt="Startale logo" />
+        <img src={startaleLogo} alt="Startale logo" width={150} />
+        <div className="title">SCS Smart Account Demo</div>
         <div className="connect">
           {isLoggedIn ? (
-            <>
-              <span>{user?.email ? user.email.address : ""}</span>
+            <div className="connected">
+              <span>{user?.email ? user.email : ""}</span>
+              <span>ASTR balance: {astrBalance}</span>
               <button type="button" className="connect-button" onClick={() => handleLogout()}>
                 Logout
               </button>
-            </>
+            </div>
           ) : (
             <button
               disabled={isLoginDisabled}
               type="button"
               className="connect-button"
-              onClick={() => login()}
+              onClick={() => setShowAuthFlow(true)}
             >
               Login
             </button>
@@ -102,7 +101,7 @@ function App() {
                   Sessions
                 </button>
               </div>
-              <div className="tab-content">
+              <div className="tabContent">
                 {selectedTab === "contract" && <ContractInteraction />}
                 {selectedTab === "recovery" && (
                   <SocialRecoverySection

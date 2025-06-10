@@ -1,11 +1,11 @@
-import { useConnectWallet, useWallets } from "@privy-io/react-auth";
+//import { useConnectWallet, useWallets } from "@privy-io/react-auth";
 import {
   getSocialRecoveryMockSignature,
   getSocialRecoveryValidator,
 } from "@rhinestone/module-sdk";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { StartaleAccountClient } from "@startale-scs/aa-sdk";
-import { createPublicClient, encodeFunctionData, encodePacked } from "viem";
+import { createPublicClient, encodeFunctionData } from "viem";
 import {
   entryPoint07Address,
   getUserOperationHash
@@ -40,8 +40,8 @@ export function SocialRecoverySection({
   const { addLine, setLoadingText } = useOutput();
   const { checkIsRecoveryModuleInstalled, isRecoveryModuleInstalled } =
     useStartale();
-  const { connectWallet } = useConnectWallet();
-  const { wallets, ready } = useWallets();
+  // const { connectWallet } = useConnectWallet();
+  // const { wallets, ready } = useWallets();
   const displayGasOutput = async () => {
     await gasOutput(
       (text) => {
@@ -62,9 +62,9 @@ export function SocialRecoverySection({
     }
   }, [isRecoveryModuleInstalled]);
 
-  const injectedWallet = useMemo(() => {
-    return wallets.find((w) => w.connectorType === "injected");
-  }, [wallets]);
+  // const injectedWallet = useMemo(() => {
+  //   return wallets.find((w) => w.connectorType === "injected");
+  // }, [wallets]);
 
   const getGuardians = async () => {
     const accountGuardians = (await publicClient.readContract({
@@ -138,37 +138,22 @@ export function SocialRecoverySection({
         threshold: 1,
       });
 
-     // Avoid..
-     // const nonce = await getAccountNonce(publicClient, {
-      //   address: startaleClient.account.address,
-      //   entryPointAddress: startaleAccount?.entryPoint.address as `0x${string}`,
-      //   key: encodeValidatorNonce({
-      //     account: getAccount({
-      //       address: startaleClient.account.address,
-      //       type: "nexus", // update: review
-      //     }),
-      //     validator: socialRecoveryModule,
-      //   }),
-      // });
-
       // Todo: Fix and use in proper way
       // This is done to be able to use sdk native helper getNonce for active validator as social recovery
       // But it may conflict with other things since singer is not passed and it's not properly converted toValidator module.
       startaleClient.account.setModule(socialRecoveryModule as any);
 
       // Now it uses internal helper
-      const nonceNew = await startaleClient.account.getNonce({
-      });
+      const nonceNew = await startaleClient.account.getNonce({});
 
       console.log("Nonce for ECDSA validator: (fixed)", nonceNew);
 
-
-      // console.log("Nonce for ECDSA validator (permissionless way): ", nonce);
       const transferOwnershipData = encodeFunctionData({
         abi: ECDSAValidatorAbi,
         functionName: "transferOwnership",
         args: [address],
       });
+
       const calls = [
         {
           to: AA_CONFIG.ECDSA_VALIDATOR_ADDRESS,
@@ -204,21 +189,21 @@ export function SocialRecoverySection({
 
       // Note: This should be signed by the guardian/s
 
-      if (!injectedWallet || injectedWallet.address !== address) {
-        console.error("Injected wallet not found or does not match the guardian address");
-        return;
-      }
-      const signature = await injectedWallet.sign(userOpHashToSign);
+      // if (!injectedWallet || injectedWallet.address !== address) {
+      //   console.error("Injected wallet not found or does not match the guardian address");
+      //   return;
+      // }
+      // const signature = await injectedWallet.sign(userOpHashToSign);
 
-      const finalSig = encodePacked(
-        Array(1).fill('bytes'),
-        Array(1).fill(signature),
-      )
+      // const finalSig = encodePacked(
+      //   Array(1).fill('bytes'),
+      //   Array(1).fill(signature),
+      // )
 
-      userOperation.signature = finalSig;
-      console.log("User operation with signature: ", userOperation);
+      // userOperation.signature = finalSig;
+      // console.log("User operation with signature: ", userOperation);
 
-      // Check if anything changes in this route..cause so far we already have paymaster sig 
+      // Check if anything changes in this route..cause so far we already have paymaster sig
       // if sendUserOperation call changes anything or tries to sign it again using active module it could cause problems
       // ideally we could just append signature then make sendSignedUserOperation call or send using rpc eth_sendUserOperation directly (refer to userop-examples repo)
       // Todo: need to find neat ways and test more.
@@ -310,28 +295,31 @@ export function SocialRecoverySection({
     await getGuardians();
   };
 
-  const connectExternalWallet = async () => {
-    try {
-      const wallet = await connectWallet();
-      console.log("Connected wallet: ", wallet);
-    } catch (error) {
-      console.error("Error connecting wallet", error);
-    }
-  };
+  // const connectExternalWallet = async () => {
+  //   try {
+  //     const wallet = await connectWallet();
+  //     console.log("Connected wallet: ", wallet);
+  //   } catch (error) {
+  //     console.error("Error connecting wallet", error);
+  //   }
+  // };
 
   return (
     <>
-      <Section title="Connect your wallet">
-        <div>
+      {/* <Section title="Connect your wallet">
+        <div className="inputGroup">
           <p>Connect an external wallet or add the address manually to act as a guardian.</p>
           {injectedWallet ? (
             <>
               <p>Injected wallet detected: {injectedWallet.address}</p>
+
               <button
                 type="button"
+                className="primaryButton"
                 onClick={() => {
                   handleAddNewGuardian(injectedWallet.address as `0x${string}`);
                 }}
+                style={{ width: "100%" }}
               >
                 Add as guardian
               </button>
@@ -342,7 +330,7 @@ export function SocialRecoverySection({
             </button>
           )}
         </div>
-      </Section>
+      </Section> */}
       <Section title="Manually add guardians">
         {guardians.length > 0 && <div>Guardians:</div>}
         <div className="inputGroup">
@@ -360,27 +348,28 @@ export function SocialRecoverySection({
             </div>
           ))}
           <div className="inputGroup">
-            <div className="addressInput">
-              <label htmlFor="guardian">New address:</label>
-              <input
-                name="guardian"
-                type="text"
-                value={guardian}
-                onChange={(e) => setGuardian(e.target.value as `0x${string}`)}
-              />
-            </div>
+            <label htmlFor="guardian">New address:</label>
+            <input
+              name="guardian"
+              type="text"
+              placeholder="0x..."
+              className="textInput"
+              value={guardian}
+              onChange={(e) => setGuardian(e.target.value as `0x${string}`)}
+            />
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (guardian) {
-                handleAddNewGuardian();
-              }
-            }}
-          >
-            Add Guardian
-          </button>
         </div>
+        <button
+          type="button"
+          className="primaryButton"
+          onClick={() => {
+            if (guardian) {
+              handleAddNewGuardian();
+            }
+          }}
+        >
+          Add Guardian
+        </button>
       </Section>
       <Section title="Recover account">
         <p>To recover your account, you need to provide the address of one of your guardians.</p>
@@ -408,12 +397,20 @@ export function SocialRecoverySection({
         </div>
         <button
           type="button"
+          className="primaryButton"
+          disabled={true}
           onClick={() => {
             changeECDSAValidatorOwner(guardian as `0x${string}`);
           }}
         >
           Recover Account
         </button>
+        <div>
+          <div className="note">
+            <b>Note:</b> Actually changing the owner is out of scope for this demo. The button is
+            disabled.
+          </div>
+        </div>
       </Section>
     </>
   );

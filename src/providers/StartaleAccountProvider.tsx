@@ -1,6 +1,6 @@
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
 import type { Module } from "@rhinestone/module-sdk";
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
   type StartaleAccountClient,
   type StartaleSmartAccount,
@@ -9,8 +9,9 @@ import {
   getSmartSessionsValidator,
   toStartaleSmartAccount,
 } from "@startale-scs/aa-sdk";
-import { http, createPublicClient, createWalletClient, custom } from "viem";
+import { http, createPublicClient, erc20Abi, formatEther } from "viem";
 import { soneiumMinato } from "viem/chains";
+import { useReadContract } from "wagmi";
 import { AA_CONFIG } from "../config";
 import { useOutput } from "./OutputProvider";
 
@@ -20,6 +21,9 @@ const publicClient = createPublicClient({ transport: http(AA_CONFIG.MINATO_RPC),
 export const StartaleContext = createContext<{
   startaleAccount?: StartaleSmartAccount;
   startaleClient?: StartaleAccountClient;
+  startaleTokenClient?: StartaleAccountClient;
+  astrBalance: number;
+  fetchAstrBalance: () => Promise<void>;
   logout: () => void;
   isRecoveryModuleInstalled: boolean;
   checkIsRecoveryModuleInstalled: () => Promise<void>;
@@ -34,19 +38,16 @@ export function useStartale() {
 }
 
 export function StartaleProvider({ children }: { children: React.ReactNode }) {
-  const { authenticated } = usePrivy();
-  const { wallets } = useWallets();
+  const { primaryWallet } = useDynamicContext();
+  const authenticated = useIsLoggedIn();
   const { addLine, clearLines, setLoadingText, setSmartAccountAddress } = useOutput();
-
+const [astrBalance, setAstrBalance] = useState<number>(0);
   const [startaleAccount, setStartaleAccount] = useState<StartaleSmartAccount>();
   const [startaleClient, setStartaleClient] = useState<StartaleAccountClient>();
+  const [startaleTokenClient, setStartaleTokenClient] = useState<StartaleAccountClient>();
   const [isRecoveryModuleInstalled, setIsRecoveryModuleInstalled] = useState(false);
   const [isSessionsModuleInstalled, setIsSessionsModuleInstalled] = useState(false);
   const didLogout = useRef(false);
-
-  const embeddedWallet = useMemo(() => {
-    return wallets.find((w) => w.connectorType === "embedded");
-  }, [wallets]);
 
   useEffect(() => {
     if (!authenticated && !didLogout.current) {
@@ -59,12 +60,12 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
   }, [authenticated]);
 
   useEffect(() => {
-    if (!authenticated || !wallets[0]?.address) {
+    if (!authenticated || !primaryWallet?.address) {
       cleanUp();
       return;
     }
     getSmartAccountInstance();
-  }, [wallets[0]?.address, authenticated]);
+  }, [primaryWallet?.address, authenticated]);
 
   useEffect(() => {
     const checkModules = async () => {
@@ -79,6 +80,17 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
     clearLines();
   };
 
+  const astrBalanceRead = useReadContract({
+    address: AA_CONFIG.ASTR_TOKEN_ADDRESS,
+    abi: erc20Abi,
+    functionName: "balanceOf" as const,
+    args: [startaleAccount?.address as `0x${string}`],
+  });
+
+  const fetchAstrBalance = async () => {
+    const result = await astrBalanceRead.refetch();
+    setAstrBalance(Number(formatEther(result.data || BigInt(0))));
+  };
   const logout = () => {
     clearLines();
     setStartaleAccount(undefined);
@@ -88,32 +100,44 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
   };
 
   const getSmartAccountInstance = async () => {
-    if (!embeddedWallet) {
+    if (!primaryWallet) {
       addLine("No embedded wallet found");
       return;
     }
-    const provider = await embeddedWallet.getEthereumProvider();
-    const walletClient = createWalletClient({
-      account: embeddedWallet.address as `0x${string}`,
-      chain,
-      transport: custom(provider),
-    });
+
+    //@ts-ignore
+    const walletClient = await primaryWallet.getWalletClient();
+    console.log("Wallet client: ", walletClient);
     const instance = await toStartaleSmartAccount({
       signer: walletClient,
       chain,
       transport: http(),
       index: BigInt(813367789),
     });
+
     setStartaleAccount(instance);
     setSmartAccountAddress(instance.address);
-    await initClient(instance);
+    await initClients(instance);
+    await fetchAstrBalance();
   };
 
   const scsContext = { calculateGasLimits: true, paymasterId: AA_CONFIG.PAYMASTER_ID }
 
   const scsPaymasterClient = createSCSPaymasterClient({
-    transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any
+    transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any,
   });
+
+const initClients = async (account: StartaleSmartAccount) => {
+  try {
+    await initClient(account);
+    await initTokenClient(account);
+  } catch (err) {
+    console.error("Client init failed", err);
+    setLoadingText("");
+    addLine("Error initializing Startale account clients");
+    addLine(`Error: ${(err as Error).message}`);
+  }
+};
 
   const initClient = async (account: StartaleSmartAccount) => {
     try {
@@ -131,6 +155,31 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
       console.error("Client init failed", err);
       setLoadingText("");
       addLine("Error initializing kernel client");
+      addLine(`Error: ${(err as Error).message}`);
+    }
+  };
+
+  const initTokenClient = async (account: StartaleSmartAccount) => {
+
+    const scsPaymasterClient = createSCSPaymasterClient({
+      transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL),
+    });
+
+    try {
+      const client = createSmartAccountClient({
+        account,
+        transport: http(AA_CONFIG.BUNDLER_URL),
+        client: publicClient,
+        paymaster: scsPaymasterClient,
+        paymasterContext: scsContext,
+      });
+      setStartaleTokenClient(client);
+      client.signMessage;
+      addLine("Startale token client instantiated");
+    } catch (err) {
+      console.error("Client init failed", err);
+      setLoadingText("");
+      addLine("Error initializing token client");
       addLine(`Error: ${(err as Error).message}`);
     }
   };
@@ -175,6 +224,9 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
       value={{
         startaleAccount,
         startaleClient,
+        startaleTokenClient,
+        astrBalance,
+        fetchAstrBalance,
         isRecoveryModuleInstalled,
         checkIsRecoveryModuleInstalled,
         isSessionsModuleInstalled,

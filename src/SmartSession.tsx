@@ -217,7 +217,7 @@ export function SmartSessionSection({
       const scsContext = { calculateGasLimits: true, paymasterId: AA_CONFIG.PAYMASTER_ID }
 
       const scsPaymasterClient = createSCSPaymasterClient({
-        transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any
+        transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any,
       });
 
       const ownerKey = localStorage.getItem("sessionOwnerKey") as `0x${string}`;

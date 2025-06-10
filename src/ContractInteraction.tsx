@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { type Abi, encodeFunctionData } from "viem";
+import { type Abi, type Address, encodeFunctionData, http, toHex } from "viem";
+import { soneiumMinato } from "viem/chains";
 import { CounterAbi } from "./abi/Counter";
 import { DiceRollLedgerAbi } from "./abi/DiceRollLedger";
 import { useOutput } from "./providers/OutputProvider";
 import { useStartale } from "./providers/StartaleAccountProvider";
+import { createSCSPaymasterClient } from "@startale-scs/aa-sdk";
+import { AA_CONFIG } from "./config";
 
 const predefinedContracts = {
   none: { name: "Select contract", address: "", abi: null },
@@ -14,7 +17,7 @@ const predefinedContracts = {
   },
   counter: {
     name: "Counter contract",
-    address: "0xA04D053b3C8021e8D5bF641816c42dAA75D8b597",
+    address: "0x6bcf154A6B80fDE9bd1556d39C9bCbB19B539Bd8",
     abi: CounterAbi,
   },
   custom: {
@@ -26,7 +29,7 @@ const predefinedContracts = {
 
 export function ContractInteraction() {
   const [selectedKey, setSelectedKey] = useState<keyof typeof predefinedContracts>("none");
-  const { startaleClient } = useStartale();
+  const { startaleClient, startaleTokenClient, fetchAstrBalance } = useStartale();
   const [selectedFunction, setSelectedFunction] = useState<string>("");
   const { addLine, setLoadingText } = useOutput();
   const [functionArgs, setFunctionArgs] = useState<Record<string, string>>({});
@@ -75,7 +78,8 @@ export function ContractInteraction() {
   useEffect(() => {
     console.log("args", functionArgs);
   }, [functionArgs]);
-  const handleSubmit = async () => {
+
+  const handleSubmitSponsoredOp = async () => {
     try {
       if (!startaleClient) throw new Error("Client not initialized");
       const abi = contractAbi as Abi;
@@ -104,11 +108,83 @@ export function ContractInteraction() {
     }
   };
 
+  const handleSubmitTokenOp = async () => {
+    if (!startaleTokenClient) throw new Error("Client not initialized");
+    if (!startaleTokenClient.paymaster)
+      throw new Error("Paymaster not configured in the client");
+    const abi = contractAbi as Abi;
+    const parsedArgs = Object.values(functionArgs);
+    const data = encodeFunctionData({
+      abi,
+      functionName: selectedFunction,
+      args: parsedArgs,
+    });
+    // const data = encodeFunctionData({
+    //   abi: CounterAbi,
+    //   functionName: "count",
+    // });
+
+    setLoadingText("Sending user operation...");
+
+    const preparedUserOp = await startaleTokenClient.prepareUserOperation({
+      calls: [
+        {
+          to: contractAddress as Address,
+          value: BigInt(0),
+          data,
+        },
+      ],
+    });
+
+    const scsPaymasterClient = createSCSPaymasterClient({
+          transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL),
+        });
+    const quotes = await scsPaymasterClient.getTokenPaymasterQuotes({
+      userOp: preparedUserOp,
+      chainId: toHex(soneiumMinato.id),
+    });
+
+    const astrQuote = quotes.feeQuotes.find(
+      (quote) => quote.tokenAddress.toLowerCase() === AA_CONFIG.ASTR_TOKEN_ADDRESS.toLowerCase(),
+    );
+
+    console.log("Quotes: ", quotes);
+    console.log("ASTR Quote: ", astrQuote);
+    console.log(AA_CONFIG.ASTR_TOKEN_ADDRESS);
+    if (!astrQuote) {
+      addLine("No ASTR token quote found");
+      setLoadingText("");
+      return;
+    }
+    const hash = await startaleTokenClient.sendTokenPaymasterUserOp({
+      calls: [
+        {
+          to: contractAddress as Address,
+          value: BigInt(0),
+          data,
+        },
+      ],
+      feeTokenAddress: AA_CONFIG.ASTR_TOKEN_ADDRESS,
+      customApprovalAmount: BigInt(astrQuote.requiredAmount),
+    })
+
+    const receipt = await startaleTokenClient.waitForUserOperationReceipt({hash});
+    addLine(`UserOperation sent: ${receipt.userOpHash}`);
+    setLoadingText("");
+    fetchAstrBalance();
+    console.log("UserOperation receipt: ", receipt);
+  };
+
   return (
     <div className="contractForm">
-      <div>
+      <div className="inputGroup">
         <label htmlFor="contractSelect">Select contract:</label>
-        <select id="contractSelect" value={selectedKey} onChange={handleContractSelection}>
+        <select
+          id="contractSelect"
+          value={selectedKey}
+          onChange={handleContractSelection}
+          className="dropdown"
+        >
           {Object.entries(predefinedContracts).map(([key, { name }]) => (
             <option key={key} value={key}>
               {name}
@@ -119,9 +195,11 @@ export function ContractInteraction() {
 
       {selectedKey !== "none" && (
         <>
-          <div className="addressInput">
+          <div className="inputGroup">
+            <label htmlFor="contractAddress">Contract address:</label>
             <input
               id="contractAddress"
+              className="textInput"
               type="text"
               placeholder="0x..."
               value={contractAddress}
@@ -129,10 +207,11 @@ export function ContractInteraction() {
             />
           </div>
 
-          <div>
+          <div className="inputGroup">
+            <label htmlFor="contractAbi">Contract ABI:</label>
             <textarea
               id="contractAbi"
-              rows={6}
+              rows={12}
               placeholder="Paste ABI JSON here"
               value={contractAbi ? JSON.stringify(contractAbi, null, 2) : ""}
               onChange={(e) => {
@@ -144,20 +223,24 @@ export function ContractInteraction() {
               }}
             />
           </div>
-          <select
-            id="function-select"
-            value={selectedFunction}
-            onChange={(e) => handleFunctionSelection(e.target.value)}
-          >
-            <option value="" disabled>
-              Select function
-            </option>
-            {functionOptions.map((fnName) => (
-              <option key={fnName} value={fnName}>
-                {fnName}
+          <div className="inputGroup">
+            <label htmlFor="function-select">Select function:</label>
+            <select
+              id="function-select"
+              value={selectedFunction}
+              onChange={(e) => handleFunctionSelection(e.target.value)}
+              className="dropdown"
+            >
+              <option value="" disabled>
+                Select function
               </option>
-            ))}
-          </select>
+              {functionOptions.map((fnName) => (
+                <option key={fnName} value={fnName}>
+                  {fnName}
+                </option>
+              ))}
+            </select>
+          </div>
           {selectedFnDef?.type === "function" &&
             "inputs" in selectedFnDef &&
             selectedFnDef.inputs?.map((input, idx) => (
@@ -168,15 +251,22 @@ export function ContractInteraction() {
                 <input
                   id={`arg-${idx}`}
                   type="text"
+                  className="textInput"
                   placeholder={`Enter ${input.type}`}
                   value={functionArgs[input.name || `arg${idx}`] || ""}
                   onChange={(e) => handleArgChange(input.name || `arg${idx}`, e.target.value)}
                 />
               </div>
             ))}
-          <button type="button" onClick={handleSubmit}>
-            Send User Operation
-          </button>
+          <div className="buttonGroup">
+            <button className="primaryButton" type="button" onClick={handleSubmitSponsoredOp}>
+              Send Sponsored User Operation
+            </button>
+            <p>Or</p>
+            <button className="primaryButton" type="button" onClick={handleSubmitTokenOp}>
+              Pay gas for User Operation with ASTR
+            </button>
+          </div>
         </>
       )}
     </div>
