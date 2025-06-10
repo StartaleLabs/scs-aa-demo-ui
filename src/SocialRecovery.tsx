@@ -1,20 +1,14 @@
 import { useConnectWallet, useWallets } from "@privy-io/react-auth";
 import {
-  encodeValidatorNonce,
-  getAccount,
-  getSetOwnableValidatorThresholdAction,
   getSocialRecoveryMockSignature,
   getSocialRecoveryValidator,
 } from "@rhinestone/module-sdk";
-import { getAccountNonce } from "permissionless/actions";
-import { use, useEffect, useMemo, useState } from "react";
-import type { StartaleAccountClient } from "startale-aa-sdk";
+import { useEffect, useMemo, useState } from "react";
+import type { StartaleAccountClient } from "@startale-scs/aa-sdk";
 import { createPublicClient, encodeFunctionData, encodePacked } from "viem";
 import {
-  createBundlerClient,
   entryPoint07Address,
-  getUserOperationHash,
-  toSmartAccount,
+  getUserOperationHash
 } from "viem/account-abstraction";
 import { soneiumMinato } from "viem/chains";
 import { http } from "wagmi";
@@ -34,11 +28,6 @@ const publicClient = createPublicClient({
   chain,
 });
 
-const bundlerClient = createBundlerClient({
-  client: publicClient,
-  transport: http(AA_CONFIG.BUNDLER_URL),
-});
-
 export function SocialRecoverySection({
   startaleClient,
   handleErrors,
@@ -49,7 +38,7 @@ export function SocialRecoverySection({
   const [guardians, setGuardians] = useState<`0x${string}`[]>([]);
   const [guardian, setGuardian] = useState<`0x${string}` | "">("");
   const { addLine, setLoadingText } = useOutput();
-  const { checkIsRecoveryModuleInstalled, isRecoveryModuleInstalled, startaleAccount } =
+  const { checkIsRecoveryModuleInstalled, isRecoveryModuleInstalled } =
     useStartale();
   const { connectWallet } = useConnectWallet();
   const { wallets, ready } = useWallets();

@@ -51,9 +51,8 @@ Currently, the demo utilizes Startale's smart contract wallet implementation wit
 This section details the core technologies, smart contracts, and SDKs used in the demo so you can create your own custom interface.
 
 ### Key Libraries and SDKs
-  - `rhinestone/module-sdk`, for interaction with ERC-7579 modules
-    - NOTE: for compatibility reasons, the module version is locked to `0.2.3`
-  - `startale-aa-sdk` instantiate and manage accounts
+  - `@rhinestone/module-sdk`, for interaction with ERC-7579 modules
+  - `@startale-scs/aa-sdk` instantiate and manage accounts
   - `viem` for SC interaction from TS
   - and optionally `wagmi` for ReactJs integration
 
@@ -106,25 +105,25 @@ PAYMASTER_SERVICE_URL=https://paymaster.scs.startale.com/v1?apikey=[API_KEY]
       chain,
     });
 
+    const scsPaymasterClient = createSCSPaymasterClient({
+      transport: http(PAYMASTER_SERVICE_URL)
+    });
+
     const bundlerClient = createBundlerClient({
       client: publicClient,
       transport: http(BUNDLER_URL),
-    });
-
-    const paymasterClient = createPaymasterClient({
-      transport: http(PAYMASTER_SERVICE_URL),
     });
    ```
 
 2. **Create a Smart Account and a client**
 
-   - Utilize `startale-aa-sdk` to instantiate a smart account.
+   - Utilize `@startale-scs/aa-sdk` to instantiate a smart account.
    - Use `window.ethereum` provider as a signer
    - for backend use a different `signer` instance (f.ex. `viem`'s local wallet)
    - use `createSmartAccountClient` for further interaction with the account
 
    ```typescript
-   import { type StartaleSmartAccount, type StartaleAccountClient, createSmartAccountClient, toStartaleSmartAccount } from "@biconomy/abstractjs";
+   import { type StartaleSmartAccount, type StartaleAccountClient, createSmartAccountClient, toStartaleSmartAccount } from "@startale-scs/aa-sdk";
 
     // Create an account
     const startaleAccountInstance = await toStartaleSmartAccount({
@@ -134,35 +133,14 @@ PAYMASTER_SERVICE_URL=https://paymaster.scs.startale.com/v1?apikey=[API_KEY]
       index: BigInt(0), //Nonce for account instance
     });
 
-    const scsContext = { calculateGasLimits: false, paymasterId: "pm_test_self_funded" };
+    const scsContext = { calculateGasLimits: false, paymasterId: <YOUR_PAYMASTER_ID_FROM_PORTAL> };
 
     const accountClientInstance = createSmartAccountClient({
         account: startaleAccountInstance,
         transport: http(BUNDLER_URL),
         client: publicClient,
-        paymaster: {
-          async getPaymasterData(pmDataParams: GetPaymasterDataParameters) {
-            pmDataParams.paymasterPostOpGasLimit = BigInt(100000);
-            pmDataParams.paymasterVerificationGasLimit = BigInt(200000);
-            pmDataParams.verificationGasLimit = BigInt(500000);
-            const paymasterResponse = await paymasterClient.getPaymasterData(pmDataParams);
-            return paymasterResponse;
-          },
-          async getPaymasterStubData(pmStubDataParams: GetPaymasterDataParameters) {
-            const paymasterStubResponse =
-              await paymasterClient.getPaymasterStubData(pmStubDataParams);
-            return paymasterStubResponse;
-          },
-        },
-        paymasterContext: scsContext,
-        userOperation: {
-          estimateFeesPerGas: async () => {
-            return {
-              maxFeePerGas: BigInt(10000000),
-              maxPriorityFeePerGas: BigInt(10000000),
-            };
-          },
-        },
+        paymaster: scsPaymasterClient,
+        paymasterContext: scsContext
       });
    ```
 Note: Paymaster actions and userOperation gas estimation are overridden for compatibility with the current version of SCS paymaster.

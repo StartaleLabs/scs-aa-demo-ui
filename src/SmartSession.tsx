@@ -15,7 +15,7 @@ import {
   smartSessionUseActions,
   toSmartSessionsValidator,
   toStartaleSmartAccount,
-} from "startale-aa-sdk";
+} from "@startale-scs/aa-sdk";
 import {
   type PublicClient,
   createPublicClient,
@@ -24,9 +24,7 @@ import {
   toFunctionSelector,
 } from "viem";
 import {
-  type GetPaymasterDataParameters,
-  createBundlerClient,
-  createPaymasterClient,
+  createBundlerClient
 } from "viem/account-abstraction";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { soneiumMinato } from "viem/chains";
@@ -37,9 +35,7 @@ import { AA_CONFIG } from "./config";
 import { gasOutput } from "./gasOutput";
 import { useOutput } from "./providers/OutputProvider";
 import { useStartale } from "./providers/StartaleAccountProvider";
-const { MINATO_RPC, BUNDLER_URL, PAYMASTER_SERVICE_URL, DICE_ROLL_LEDGER_ADDRESS } = AA_CONFIG;
-
-const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" };
+const { MINATO_RPC, BUNDLER_URL, DICE_ROLL_LEDGER_ADDRESS } = AA_CONFIG;
 
 const chain = soneiumMinato;
 
@@ -51,10 +47,6 @@ const publicClient = createPublicClient({
 const bundlerClient = createBundlerClient({
   client: publicClient,
   transport: http(BUNDLER_URL),
-});
-
-const paymasterClient = createPaymasterClient({
-  transport: http(PAYMASTER_SERVICE_URL),
 });
 
 export function SmartSessionSection({
@@ -222,7 +214,7 @@ export function SmartSessionSection({
       });
       console.log("is session Enabled", isEnabled);
 
-      const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" }
+      const scsContext = { calculateGasLimits: true, paymasterId: AA_CONFIG.PAYMASTER_ID }
 
       const scsPaymasterClient = createSCSPaymasterClient({
         transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any

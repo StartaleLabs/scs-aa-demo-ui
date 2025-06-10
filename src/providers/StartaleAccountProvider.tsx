@@ -8,17 +8,14 @@ import {
   createSmartAccountClient,
   getSmartSessionsValidator,
   toStartaleSmartAccount,
-} from "startale-aa-sdk";
+} from "@startale-scs/aa-sdk";
 import { http, createPublicClient, createWalletClient, custom } from "viem";
-import { type GetPaymasterDataParameters, createPaymasterClient } from "viem/account-abstraction";
 import { soneiumMinato } from "viem/chains";
 import { AA_CONFIG } from "../config";
 import { useOutput } from "./OutputProvider";
 
 const chain = soneiumMinato;
 const publicClient = createPublicClient({ transport: http(AA_CONFIG.MINATO_RPC), chain });
-const paymasterClient = createPaymasterClient({ transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) });
-const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_self_funded" };
 
 export const StartaleContext = createContext<{
   startaleAccount?: StartaleSmartAccount;
@@ -105,14 +102,14 @@ export function StartaleProvider({ children }: { children: React.ReactNode }) {
       signer: walletClient,
       chain,
       transport: http(),
-      index: BigInt(813367),
+      index: BigInt(813367789),
     });
     setStartaleAccount(instance);
     setSmartAccountAddress(instance.address);
     await initClient(instance);
   };
 
-  const scsContext = { calculateGasLimits: true, paymasterId: "pm_test_managed" }
+  const scsContext = { calculateGasLimits: true, paymasterId: AA_CONFIG.PAYMASTER_ID }
 
   const scsPaymasterClient = createSCSPaymasterClient({
     transport: http(AA_CONFIG.PAYMASTER_SERVICE_URL) as any
