@@ -15,7 +15,7 @@ import {
   smartSessionUseActions,
   toSmartSessionsValidator,
   toStartaleSmartAccount,
-} from "startale-aa-sdk";
+} from "@startale-scs/aa-sdk";
 import {
   type PublicClient,
   createPublicClient,

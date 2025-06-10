@@ -1,6 +1,6 @@
 import { getSocialRecoveryMockSignature, getSocialRecoveryValidator } from "@rhinestone/module-sdk";
 import { useEffect, useState } from "react";
-import type { StartaleAccountClient } from "startale-aa-sdk";
+import type { StartaleAccountClient } from "@startale-scs/aa-sdk";
 import { createPublicClient, encodeFunctionData } from "viem";
 import { entryPoint07Address, getUserOperationHash } from "viem/account-abstraction";
 import { soneiumMinato } from "viem/chains";
