@@ -52,8 +52,7 @@ This section details the core technologies, smart contracts, and SDKs used in th
 
 ### Key Libraries and SDKs
   - `rhinestone/module-sdk`, for interaction with ERC-7579 modules
-    - NOTE: for compatibility reasons, the module version is locked to `0.2.3`
-  - `startale-aa-sdk` instantiate and manage accounts
+  - `@startale-scs/aa-sdk` instantiate and manage accounts
   - `viem` for SC interaction from TS
   - and optionally `wagmi` for ReactJs integration
 

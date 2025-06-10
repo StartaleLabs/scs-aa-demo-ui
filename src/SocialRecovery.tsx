@@ -1,4 +1,4 @@
-import type { StartaleAccountClient } from "startale-aa-sdk";
+import type { StartaleAccountClient } from "@startale-scs/aa-sdk";
 import { type Module, getSocialRecoveryValidator } from "@rhinestone/module-sdk";
 import { useEffect, useState } from "react";
 import { createPublicClient, encodeFunctionData } from "viem";

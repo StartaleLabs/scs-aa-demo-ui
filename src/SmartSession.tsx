@@ -7,7 +7,7 @@ import {
   smartSessionUseActions,
   toStartaleSmartAccount,
   toSmartSessionsValidator,
-} from "startale-aa-sdk";
+} from "@startale-scs/aa-sdk";
 import {
   SmartSessionMode,
   getSmartSessionsValidator,

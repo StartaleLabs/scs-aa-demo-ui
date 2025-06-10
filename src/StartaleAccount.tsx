@@ -1,4 +1,4 @@
-  import { createSmartAccountClient, StartaleAccountClient, StartaleSmartAccount, toStartaleSmartAccount } from "startale-aa-sdk";
+  import { createSmartAccountClient, StartaleAccountClient, StartaleSmartAccount, toStartaleSmartAccount } from "@startale-scs/aa-sdk";
   
   import { usePrivy, useWallets } from "@privy-io/react-auth";
   
